@@ -159,6 +159,13 @@ final class ProcessTap {
             self.processTapID = .unknown
         }
     }
+    
+    func cleanup() {
+        if activated {
+            logger.debug("Cleaning up ProcessTap")
+            invalidate()  // Invalidate to disconnect and release resources
+        }
+    }
 
     private func prepare(for objectID: AudioObjectID) throws {
         errorMessage = nil
@@ -244,7 +251,7 @@ final class ProcessTapRecorder: ObservableObject {
 
     let fileURL: URL
     let process: AudioProcess
-    private let queue = DispatchQueue(label: "ProcessTapRecorder", qos: .userInitiated)
+    private let queue = DispatchQueue(label: "ProcessTapRecorder", qos: .userInteractive, attributes: .concurrent)
     private let logger: Logger
     
     var currentFormat: AVAudioFormat
@@ -252,17 +259,40 @@ final class ProcessTapRecorder: ObservableObject {
     var samplesData: [UInt8] = []
     private var updateCounter = 0
     
+    func stopAllTapsAndCleanup() {
+        logger.debug("Stopping all taps and performing cleanup")
+
+        // Stop the recording if it's active
+        if isRecording {
+            stop()
+        }
+
+        // Ensure the tap is invalidated and cleaned up
+        do {
+            try tap.cleanup()
+        } catch {
+            logger.error("Failed to cleanup ProcessTap: \(error, privacy: .public)")
+        }
+
+        // Additional cleanup if needed
+        _tap = nil  // Release the reference to the tap
+    }
+    
     private func updateSamplesAndFFT(buffer: AVAudioPCMBuffer) {
         updateCounter += 1
-        guard updateCounter % 2 == 0 else { return } /// throttle updates to every other frame
-        let samples = processSamples(from: buffer)
         
-        DispatchQueue.global(qos: .background).async { [weak self] in
+        let samples = processSamples(from: buffer)
+        DispatchQueue.main.async {
+            self.samplesData = samples
+        }
+        
+        guard updateCounter % 2 == 0 else { return } /// throttle updates to every other frame
+        
+        DispatchQueue.global(qos: .userInteractive).async { [weak self] in
             guard let self = self else { return }
             let frequencyBins = self.performAndProcessFFT(on: buffer)
             
             DispatchQueue.main.async {
-                self.samplesData = samples
                 self.fftData = frequencyBins
             }
         }

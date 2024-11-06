@@ -9,6 +9,137 @@
 #include "./video/effects/chaser.h"
 #include "./video/blur.h"
 
+// --- RENDER LOOP / MULTI THREADING ---
+
+static const uint8_t *globalWaveform = NULL;
+static const uint8_t *globalSpectrum = NULL;
+static size_t globalWaveformLength = 0;
+static size_t globalSpectrumLength = 0;
+static int renderLoopRunning = 1;
+static pthread_mutex_t audioDataMutex = PTHREAD_MUTEX_INITIALIZER;
+
+// Double-buffering variables
+static uint8_t *bufferA = NULL;
+static uint8_t *bufferB = NULL;
+static int isWritingToBufferA = 1;  // Track which buffer is for writing
+static int displayBufferA = 1;      // Track which buffer is for display
+static pthread_mutex_t bufferMutex = PTHREAD_MUTEX_INITIALIZER;  // Mutex for buffer switching
+
+// Get the display buffer (read-only)
+uint8_t *getDisplayBuffer(void) {
+    pthread_mutex_lock(&bufferMutex);
+    uint8_t *displayBuffer = displayBufferA ? bufferA : bufferB;
+    pthread_mutex_unlock(&bufferMutex);
+    return displayBuffer;
+}
+
+// Toggle the writing buffer after a frame render is complete
+void toggleBuffer(void) {
+    pthread_mutex_lock(&bufferMutex);
+    // Switch the buffer to be displayed and assign the other for writing
+    displayBufferA = isWritingToBufferA;
+    isWritingToBufferA = !isWritingToBufferA;
+    pthread_mutex_unlock(&bufferMutex);
+}
+
+// Function to get the active buffer for writing (called in renderLoop)
+uint8_t *getWriteBuffer(void) {
+    return isWritingToBufferA ? bufferA : bufferB;
+}
+
+
+void updateAudioData(const uint8_t *waveform, const uint8_t *spectrum, size_t waveformLength, size_t spectrumLength) {
+    pthread_mutex_lock(&audioDataMutex);
+    globalWaveform = waveform;
+    globalSpectrum = spectrum;
+    globalWaveformLength = waveformLength;
+    globalSpectrumLength = spectrumLength;
+    pthread_mutex_unlock(&audioDataMutex);
+}
+
+void *renderLoop(void *arg) {
+    RenderLoopArgs *args = (RenderLoopArgs *)arg;
+    
+    while (renderLoopRunning) {
+        size_t currentTime = getCurrentTimeMillis();
+
+        // Get the write buffer
+        uint8_t *frameBuffer = getWriteBuffer();
+
+        // Render to the write buffer
+        render(
+            frameBuffer,
+            args->canvasWidthPx,
+            args->canvasHeightPx,
+            globalWaveform,
+            globalSpectrum,
+            globalWaveformLength,
+            globalSpectrumLength,
+            args->bitDepth,
+            NULL,  // Presets buffer
+            0.03f, // Speed factor
+            currentTime,
+            args->sampleRate
+        );
+
+        // Wait for roughly 60 FPS
+        usleep(16000);
+
+        // Toggle buffers after rendering
+        toggleBuffer();
+    }
+
+    return NULL;
+}
+
+void startContinuousRender(uint8_t *frameBufferA, uint8_t *frameBufferB, size_t canvasWidthPx, size_t canvasHeightPx, uint8_t bitDepth, size_t sampleRate) {
+    pthread_t renderThread;
+    pthread_attr_t attr;
+    struct sched_param param;
+
+    // Initialize buffer pointers
+    bufferA = frameBufferA;
+    bufferB = frameBufferB;
+
+    // Allocate memory for the arguments struct
+    RenderLoopArgs *args = malloc(sizeof(RenderLoopArgs));
+    if (args == NULL) {
+        fprintf(stderr, "Failed to allocate memory for render loop arguments\n");
+        return;
+    }
+
+    // Populate the struct with arguments, including both buffers
+    args->canvasWidthPx = canvasWidthPx;
+    args->canvasHeightPx = canvasHeightPx;
+    args->bitDepth = bitDepth;
+    args->sampleRate = sampleRate;
+
+    // The pthread API used on macOS doesn’t work very well with the M1 platforms;
+    // a pthread priority below four will lock the thread to the E cores,
+    // which, ironically, on the higher performance variants causes a significant
+    // performance disparity due to having 2 vs 4 E cores.
+    
+    // Initialize pthread attributes
+    pthread_attr_init(&attr);
+
+    // Set scheduling policy to SCHED_FIFO (real-time) if available
+    if (pthread_attr_setschedpolicy(&attr, SCHED_FIFO) == 0) {
+        param.sched_priority = sched_get_priority_max(SCHED_FIFO);  // Set to maximum priority for FIFO
+        pthread_attr_setschedparam(&attr, &param);
+    } else {
+        fprintf(stderr, "Failed to set SCHED_FIFO; using default priority.\n");
+    }
+
+    // Start the render loop in a new thread with attributes
+    pthread_create(&renderThread, &attr, renderLoop, args);
+    pthread_detach(renderThread);
+
+    // Clean up attributes
+    pthread_attr_destroy(&attr);
+}
+
+// ---- SINGLE FRAME RENDERING ---
+
 // flag to check if lastFrame is initialized
 static int milky_videoIsLastFrameInitialized = 0;
 

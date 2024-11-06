@@ -1,35 +1,56 @@
 import SwiftUI
 import Combine
 import Foundation
+import os
 
-/// Shared data structure
-class SharedAudioData {
-    private let queue = DispatchQueue(label: "AudioDataQueue", attributes: .concurrent)
-    private var semaphore = DispatchSemaphore(value: 1)
-    
-    private var samplesData: [UInt8] = []
-    private var fftData: [UInt8] = []
-    private var sampleRate: Int = 44_100
-    
-    func update(samplesData: [UInt8], fftData: [UInt8], sampleRate: Int) {
-        semaphore.wait()
-        self.samplesData = samplesData
-        self.fftData = fftData
-        self.sampleRate = sampleRate
-        semaphore.signal()
+/// Data structure for audio data
+struct AudioData {
+    var samplesData: [UInt8]
+    var fftData: [UInt8]
+    var sampleRate: Int
+}
+
+/// Double-buffered cache using `DispatchQueue` for minimal locking
+final class DecoupledCache<T> {
+    private var buffer1: T
+    private var buffer2: T
+    private var useBuffer1ForRead = true  // Tracks the current read buffer
+    private let queue = DispatchQueue(label: "DecoupledCacheQueue", attributes: .concurrent)
+
+    init(initialValue: T) {
+        buffer1 = initialValue
+        buffer2 = initialValue
     }
-    
-    func read() -> (samplesData: [UInt8], fftData: [UInt8], sampleRate: Int) {
-        semaphore.wait()
-        let data = (samplesData, fftData, sampleRate)
-        semaphore.signal()
-        return data
+
+    /// Write data to the inactive buffer and toggle
+    func write(_ writer: @escaping (inout T) -> Void) {
+        queue.async(flags: .barrier) {
+            // Select the inactive buffer for writing
+            if self.useBuffer1ForRead {
+                var tempBuffer = self.buffer2  // Create a temporary variable
+                writer(&tempBuffer)  // Modify the temporary variable
+                self.buffer2 = tempBuffer  // Assign the modified buffer back
+            } else {
+                var tempBuffer = self.buffer1
+                writer(&tempBuffer)
+                self.buffer1 = tempBuffer
+            }
+            self.useBuffer1ForRead.toggle()  // Toggle buffer
+        }
+    }
+
+    /// Read data from the active buffer
+    func read(_ reader: @escaping (T) -> Void) {
+        queue.sync {
+            let readBuffer = useBuffer1ForRead ? buffer1 : buffer2
+            reader(readBuffer)
+        }
     }
 }
 
 class SyncController: ObservableObject {
     @Published private(set) var isSyncing: Bool = false
-    let sharedData = SharedAudioData()
+    let sharedData = DecoupledCache<AudioData>(initialValue: AudioData(samplesData: [], fftData: [], sampleRate: 44_100))
     
     func startSyncing() {
         isSyncing = true
@@ -99,6 +120,7 @@ struct RecordingView: View {
                 }
                     .fixedSize(horizontal: false, vertical: false)
             }
+           
         }
         
         Section {
@@ -157,67 +179,85 @@ struct RecordingView: View {
     
     func startAudioSyncLoop() {
         syncController.startSyncing()
-        
-        let audioQueue = DispatchQueue(label: "AudioQueue", qos: .userInitiated, attributes: .concurrent)
+
+        let audioQueue = DispatchQueue(label: "AudioQueue", qos: .userInteractive, attributes: .concurrent)
         let renderQueue = DispatchQueue(label: "RenderQueue", qos: .userInteractive, attributes: .concurrent)
-        
+
+        // Audio Queue (Producer)
         audioQueue.async {
             Task {
+                var lastFrameTime = Date()
+                let nanosecondsPerSecond: UInt64 = 1_000_000_000
+                let sleepDuration = nanosecondsPerSecond / UInt64(targetFPS)
                 while await syncController.isSyncing {
                     let samplesData = await recorder.samplesData
                     let fftData = await recorder.fftData
+                    
                     let sampleRate = Int(await recorder.currentFormat.sampleRate)
+                    let currentTime = Date()
+                    let deltaTime = currentTime.timeIntervalSince(lastFrameTime)
+                    lastFrameTime = currentTime
+                    print("Audio Provider FPS:", 1.0 / max(deltaTime, 0.0001))
                     
-                    await syncController.sharedData.update(samplesData: samplesData, fftData: fftData, sampleRate: sampleRate)
-                    
-                    try? await Task.sleep(nanoseconds: 5) /// as fast as possible
+                    syncController.sharedData.write { buffer in
+                        buffer.samplesData = samplesData
+                        buffer.fftData = fftData
+                        buffer.sampleRate = sampleRate
+                    }
+
+                    try? await Task.sleep(nanoseconds: sleepDuration)  // Run as fast as possible
                 }
             }
         }
-        
+
+        // Render Queue (Consumer)
         renderQueue.async {
             Task {
                 var lastFrameTime = Date()
                 var lastWidth = 0
                 var lastHeight = 0
                 let nanosecondsPerSecond: UInt64 = 1_000_000_000
-                let sleepDuration = nanosecondsPerSecond / UInt64(await targetFPS)
-                
+                let sleepDuration = nanosecondsPerSecond / UInt64(targetFPS)
+
                 while await syncController.isSyncing {
                     let (capturedWidth, capturedHeight, capturedOversamplingFactor, capturedBitDepth, capturedShowFPS) = await (
                         width, height, oversamplingFactor, bitDepth, showFPS
                     )
-                    
+
                     let currentTime = Date()
                     let deltaTime = currentTime.timeIntervalSince(lastFrameTime)
                     lastFrameTime = currentTime
-                    print("Rendering FPS:", 1.0 / max(deltaTime, 0.0001))
-                    
-                    let (samplesData, fftData, sampleRate) = await syncController.sharedData.read()
-                    
-                    if let detachedWindow = await detachedWindow {
-                        if lastWidth == 0 || lastHeight == 0 || lastHeight != capturedHeight || lastWidth != capturedWidth {
-                            await detachedWindow.setContentSize(NSSize(width: capturedWidth, height: capturedHeight))
-                            lastWidth = capturedWidth
-                            lastHeight = capturedHeight
+                    print("Rendering Call FPS:", 1.0 / max(deltaTime, 0.0001))
+
+                    syncController.sharedData.read { buffer in
+                        if let detachedWindow = detachedWindow {
+                            DispatchQueue.main.async {
+                                // Ensure resizing happens on the main thread
+                                if lastWidth == 0 || lastHeight == 0 || lastHeight != capturedHeight || lastWidth != capturedWidth {
+                                    detachedWindow.setContentSize(NSSize(width: capturedWidth, height: capturedHeight))
+                                    lastWidth = capturedWidth
+                                    lastHeight = capturedHeight
+                                }
+
+                                detachedWindow.detachedViewController.updateData(
+                                    samplesData: buffer.samplesData,
+                                    fftData: buffer.fftData,
+                                    width: Int(capturedWidth * capturedOversamplingFactor),
+                                    height: Int(capturedHeight * capturedOversamplingFactor),
+                                    bitdepth: capturedBitDepth,
+                                    showFPS: capturedShowFPS,
+                                    sampleRate: buffer.sampleRate
+                                )
+                            }
                         }
-                        
-                        await detachedWindow.detachedViewController.updateData(
-                            samplesData: samplesData,
-                            fftData: fftData,
-                            width: Int(capturedWidth * capturedOversamplingFactor),
-                            height: Int(capturedHeight * capturedOversamplingFactor),
-                            bitdepth: capturedBitDepth,
-                            showFPS: capturedShowFPS,
-                            sampleRate: sampleRate
-                        )
                     }
-                    
-                    try? await Task.sleep(nanoseconds: sleepDuration) /// desired FPS, set by user; tested: works (up to 9000 FPS (!!)  if no audio stream "attached")
+
+                    try? await Task.sleep(nanoseconds: sleepDuration)  // Maintain target FPS
                 }
             }
         }
     }
+
     
     func stopAudioSyncLoop() {
         syncController.stopSyncing()

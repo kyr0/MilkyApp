@@ -45,11 +45,9 @@ final class AudioProcessController {
           .sink { [weak self] apps in
               guard let self else { return }
               self.reload(apps: apps)
-              /*
-              Task(priority: .userInteractive) { // Max priority for updates
-                await self.reload(apps: apps)
+              Task(priority: .high) { // Max priority for updates
+                self.reload(apps: apps)
               }
-               */
           }
           .store(in: &cancellables)
     }
