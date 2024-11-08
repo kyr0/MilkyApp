@@ -220,6 +220,10 @@ final class ProcessTap {
         }
 
         logger.debug("Created aggregate device #\(self.aggregateDeviceID, privacy: .public)")
+        
+        // Call the C function with the pointer to `deviceProcID`
+        StartAudioCapture(aggregateDeviceID, &deviceProcID)
+
     }
 
     func run(on queue: DispatchQueue, ioBlock: @escaping AudioDeviceIOBlock, invalidationHandler: @escaping InvalidationHandler) throws {

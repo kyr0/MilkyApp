@@ -3,10 +3,12 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 56;
+	objectVersion = 70;
 	objects = {
 
 /* Begin PBXBuildFile section */
+		844D168A2CDD5F5F00281347 /* video.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 844D16882CDD5F5F00281347 /* video.cpp */; };
+		844D168B2CDD5F5F00281347 /* audio.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 844D16862CDD5F5F00281347 /* audio.cpp */; };
 		8499FA452CD70DF700BFD282 /* DetatchedWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8499FA442CD70DF100BFD282 /* DetatchedWindow.swift */; };
 		8499FA472CD70E1300BFD282 /* DetachedViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8499FA462CD70E0E00BFD282 /* DetachedViewController.swift */; };
 		8499FA522CD8054500BFD282 /* MetalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8499FA512CD8054500BFD282 /* MetalKit.framework */; };
@@ -36,6 +38,10 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		844D16852CDD5F5F00281347 /* audio.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = audio.hpp; sourceTree = "<group>"; };
+		844D16862CDD5F5F00281347 /* audio.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = audio.cpp; sourceTree = "<group>"; };
+		844D16872CDD5F5F00281347 /* video.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = video.hpp; sourceTree = "<group>"; };
+		844D16882CDD5F5F00281347 /* video.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = video.cpp; sourceTree = "<group>"; };
 		8499FA442CD70DF100BFD282 /* DetatchedWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetatchedWindow.swift; sourceTree = "<group>"; };
 		8499FA462CD70E0E00BFD282 /* DetachedViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetachedViewController.swift; sourceTree = "<group>"; };
 		8499FA512CD8054500BFD282 /* MetalKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MetalKit.framework; path = System/Library/Frameworks/MetalKit.framework; sourceTree = SDKROOT; };
@@ -79,6 +85,11 @@
 		F47AD94A2BF5B61F005B75AC /* Milky.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Milky.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		849A40922CDD4F10004A478F /* DSP */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = DSP; sourceTree = "<group>"; };
+		849A40982CDD5226004A478F /* aspl */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = aspl; sourceTree = "<group>"; };
+/* End PBXFileSystemSynchronizedRootGroup section */
+
 /* Begin PBXFrameworksBuildPhase section */
 		F47AD93B2BF5B61E005B75AC /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
@@ -92,6 +103,17 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		844D16892CDD5F5F00281347 /* DSP */ = {
+			isa = PBXGroup;
+			children = (
+				844D16852CDD5F5F00281347 /* audio.hpp */,
+				844D16862CDD5F5F00281347 /* audio.cpp */,
+				844D16872CDD5F5F00281347 /* video.hpp */,
+				844D16882CDD5F5F00281347 /* video.cpp */,
+			);
+			path = DSP;
+			sourceTree = "<group>";
+		};
 		8499FA502CD8054500BFD282 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
@@ -191,6 +213,9 @@
 		F47AD9402BF5B61E005B75AC /* Milky */ = {
 			isa = PBXGroup;
 			children = (
+				844D16892CDD5F5F00281347 /* DSP */,
+				849A40982CDD5226004A478F /* aspl */,
+				849A40922CDD4F10004A478F /* DSP */,
 				8499FA912CD83FB900BFD282 /* Visualizer */,
 				8499FA462CD70E0E00BFD282 /* DetachedViewController.swift */,
 				8499FA442CD70DF100BFD282 /* DetatchedWindow.swift */,
@@ -233,6 +258,10 @@
 			buildRules = (
 			);
 			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				849A40922CDD4F10004A478F /* DSP */,
+				849A40982CDD5226004A478F /* aspl */,
 			);
 			name = Milky;
 			productName = AudioCap;
@@ -296,6 +325,8 @@
 				F47AD9442BF5B61E005B75AC /* RootView.swift in Sources */,
 				8499FA472CD70E1300BFD282 /* DetachedViewController.swift in Sources */,
 				F47AD9422BF5B61E005B75AC /* MilkyApp.swift in Sources */,
+				844D168A2CDD5F5F00281347 /* video.cpp in Sources */,
+				844D168B2CDD5F5F00281347 /* audio.cpp in Sources */,
 				F431728D2BF68C0C00D918A3 /* AudioRecordingPermission.swift in Sources */,
 				F431729A2BF7A51A00D918A3 /* RecordingView.swift in Sources */,
 				F43172A12BF7BF1300D918A3 /* RecordingIndicator.swift in Sources */,
@@ -452,6 +483,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = Milky/Milky.entitlements;
 				CODE_SIGN_STYLE = Automatic;
@@ -461,7 +493,10 @@
 				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
+				GCC_C_LANGUAGE_STANDARD = c17;
 				GENERATE_INFOPLIST_FILE = YES;
+				HEADER_SEARCH_PATHS = "";
+				INCLUDED_RECURSIVE_SEARCH_PATH_SUBDIRECTORIES = "";
 				INFOPLIST_FILE = Milky/Info.plist;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Record audio";
@@ -470,12 +505,15 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.2;
+				OTHER_CPLUSPLUSFLAGS = "$(OTHER_CFLAGS)";
 				PRODUCT_BUNDLE_IDENTIFIER = de.aronhomberg.Milky;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OBJC_INTEROP_MODE = objcxx;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
-				TAPI_EXTRA_PROJECT_HEADERS = "$(SRCROOT)/Milky/Visualizer";
+				TAPI_EXTRA_PROJECT_HEADERS = "${SRCROOT}/Milky/DSP $(SRCROOT)/Milky/Visualizer ${SRCROOT}/Milky/aspl/**";
+				TAPI_EXTRA_PUBLIC_HEADERS = "";
 			};
 			name = Debug;
 		};
@@ -484,6 +522,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = Milky/Milky.entitlements;
 				CODE_SIGN_STYLE = Automatic;
@@ -493,7 +532,10 @@
 				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
+				GCC_C_LANGUAGE_STANDARD = c17;
 				GENERATE_INFOPLIST_FILE = YES;
+				HEADER_SEARCH_PATHS = "";
+				INCLUDED_RECURSIVE_SEARCH_PATH_SUBDIRECTORIES = "";
 				INFOPLIST_FILE = Milky/Info.plist;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Record audio";
@@ -502,11 +544,14 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.2;
+				OTHER_CPLUSPLUSFLAGS = "$(OTHER_CFLAGS)";
 				PRODUCT_BUNDLE_IDENTIFIER = de.aronhomberg.Milky;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OBJC_INTEROP_MODE = objcxx;
 				SWIFT_VERSION = 5.0;
-				TAPI_EXTRA_PROJECT_HEADERS = "$(SRCROOT)/Milky/Visualizer";
+				TAPI_EXTRA_PROJECT_HEADERS = "${SRCROOT}/Milky/DSP $(SRCROOT)/Milky/Visualizer ${SRCROOT}/Milky/aspl/**";
+				TAPI_EXTRA_PUBLIC_HEADERS = "";
 			};
 			name = Release;
 		};

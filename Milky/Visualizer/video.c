@@ -155,6 +155,9 @@ static size_t milky_videoTempBufferSize = 0;
 static size_t milky_videoLastCanvasWidthPx = 0;
 static size_t milky_videoLastCanvasHeightPx = 0;
 
+static double milky_lastFrameTime = 0;
+static double milky_fps = 0;
+
 /**
  * Renders one visual frame based on audio waveform and spectrum data.
  *
@@ -196,6 +199,16 @@ void render(
         return;
     }
     
+    // Calculate FPS
+    if (milky_lastFrameTime > 0) {
+        double deltaTime = (currentTime - milky_lastFrameTime) / 1000.0;  // Convert to seconds
+        if (deltaTime > 0) {
+            milky_fps = 1.0 / deltaTime;
+        }
+    }
+    milky_lastFrameTime = currentTime;
+    fprintf(stdout, "Render FPS: %.2f\n", milky_fps);
+
     // calculate the size of the frame buffer based on canvas dimensions and RGBA format
     size_t frameSize = canvasWidthPx * canvasHeightPx * 4;
     

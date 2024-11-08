@@ -62,7 +62,8 @@ struct ProcessSelectionView: View {
         let newTap = ProcessTap(process: process)
         self.tap = newTap
         newTap.activate()
-
+        
+        //startAudioLoop(process.objectID, process.id)
         createRecorder()
     }
 

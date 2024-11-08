@@ -78,6 +78,7 @@ class DetachedViewController: NSViewController, NSWindowDelegate {
     
     func updateData(samplesData: [UInt8], fftData: [UInt8], width: Int, height: Int, bitdepth: Int, showFPS: Bool, sampleRate: Int) {
         
+        /*
         let currentTime = Date()
         let deltaTime = currentTime.timeIntervalSince(lastFrameTime)
         lastFrameTime = currentTime
@@ -102,6 +103,7 @@ class DetachedViewController: NSViewController, NSWindowDelegate {
                                 samplesData.count, fftData.count)
             }
         }
+     */
     }
     
     func updateImage() {
@@ -112,6 +114,21 @@ class DetachedViewController: NSViewController, NSWindowDelegate {
             bufferLock.unlock()
             return
         }
+        
+        let currentTime = Date()
+        let deltaTime = currentTime.timeIntervalSince(lastFrameTime)
+        lastFrameTime = currentTime
+        
+        let clampedDeltaTime = max(deltaTime, 0.0001)
+        let currentFPS = 1.0 / clampedDeltaTime
+        
+        // Update FPS label
+        if true {
+            fpsLabel.stringValue = String(format: "FPS: %.2f", currentFPS)
+        } else {
+            fpsLabel.stringValue = ""
+        }
+        
         
         // Convert the UnsafeMutablePointer to a [UInt8] array
         let bufferSize = width * height * 4 // Assuming 4 bytes per pixel (RGBA)

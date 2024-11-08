@@ -134,8 +134,8 @@ struct RecordingView: View {
                 } else {
                     Button("Start") {
                         handlingErrors {
-                            try recorder.start()
-                            startAudioSyncLoop()
+                            //try recorder.start()
+                            //startAudioSyncLoop()
                             closeMainWindow()
                             openDetachedWindow()
                         }
@@ -159,7 +159,7 @@ struct RecordingView: View {
     }
     
     func closeMainWindow() {
-        NSApp.hide(nil)
+        //NSApp.hide(nil)
     }
     
     func openDetachedWindow() {
@@ -197,7 +197,7 @@ struct RecordingView: View {
                     let currentTime = Date()
                     let deltaTime = currentTime.timeIntervalSince(lastFrameTime)
                     lastFrameTime = currentTime
-                    print("Audio Provider FPS:", 1.0 / max(deltaTime, 0.0001))
+                    //print("Audio Provider FPS:", 1.0 / max(deltaTime, 0.0001))
                     
                     syncController.sharedData.write { buffer in
                         buffer.samplesData = samplesData
@@ -227,7 +227,7 @@ struct RecordingView: View {
                     let currentTime = Date()
                     let deltaTime = currentTime.timeIntervalSince(lastFrameTime)
                     lastFrameTime = currentTime
-                    print("Rendering Call FPS:", 1.0 / max(deltaTime, 0.0001))
+                    //print("Rendering Call FPS:", 1.0 / max(deltaTime, 0.0001))
 
                     syncController.sharedData.read { buffer in
                         if let detachedWindow = detachedWindow {

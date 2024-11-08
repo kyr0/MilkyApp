@@ -19,6 +19,11 @@ typedef struct {
     size_t sampleRate;
 } RenderLoopArgs;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+
 void render(
     uint8_t *frame,                 // Canvas frame buffer (RGBA format)
     size_t canvasWidthPx,           // Canvas width in pixels
@@ -33,6 +38,10 @@ void render(
     size_t currentTime,             // Current time in milliseconds,
     size_t sampleRate               // Waveform sample rate (samples per second)
 );
+
+#ifdef __cplusplus
+}
+#endif
 
 void reserveAndUpdateMemory(size_t canvasWidthPx, size_t canvasHeightPx,  uint8_t *frame, size_t frameSize);
 
