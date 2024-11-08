@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 70;
+	objectVersion = 56;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -84,11 +84,6 @@
 		F47AD9482BF5B61F005B75AC /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
 		F47AD94A2BF5B61F005B75AC /* Milky.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Milky.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
-
-/* Begin PBXFileSystemSynchronizedRootGroup section */
-		849A40922CDD4F10004A478F /* DSP */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = DSP; sourceTree = "<group>"; };
-		849A40982CDD5226004A478F /* aspl */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = aspl; sourceTree = "<group>"; };
-/* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		F47AD93B2BF5B61E005B75AC /* Frameworks */ = {
@@ -214,8 +209,6 @@
 			isa = PBXGroup;
 			children = (
 				844D16892CDD5F5F00281347 /* DSP */,
-				849A40982CDD5226004A478F /* aspl */,
-				849A40922CDD4F10004A478F /* DSP */,
 				8499FA912CD83FB900BFD282 /* Visualizer */,
 				8499FA462CD70E0E00BFD282 /* DetachedViewController.swift */,
 				8499FA442CD70DF100BFD282 /* DetatchedWindow.swift */,
@@ -258,10 +251,6 @@
 			buildRules = (
 			);
 			dependencies = (
-			);
-			fileSystemSynchronizedGroups = (
-				849A40922CDD4F10004A478F /* DSP */,
-				849A40982CDD5226004A478F /* aspl */,
 			);
 			name = Milky;
 			productName = AudioCap;

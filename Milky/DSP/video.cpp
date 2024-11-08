@@ -1,5 +1,3 @@
-// Client.cpp
-#include "Client.hpp"
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
