@@ -96,7 +96,7 @@ void *renderLoop(void *arg) {
             globalSpectrumLength,
             args->bitDepth,
             NULL,
-            0.03f,
+            0.035f,
             currentTime,
             args->sampleRate
         );

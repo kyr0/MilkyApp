@@ -27,11 +27,11 @@ vertex VertexOut vertex_main(VertexIn in [[stage_in]]) {
 
 // Cubic Hermite interpolation function
 float cubicHermite(float A, float B, float C, float D, float t) {
-    float a = -A / 2.0 + (3.0 * B) / 2.0 - (3.0 * C) / 2.0 + D / 2.0;
-    float b = A - (5.0 * B) / 2.0 + 2.0 * C - D / 2.0;
-    float c = -A / 2.0 + C / 2.0;
+    float a = (-A + 3.0 * B - 3.0 * C + D) * 0.5;
+    float b = (2.0 * A - 5.0 * B + 4.0 * C - D) * 0.5;
+    float c = (-A + C) * 0.5;
     float d = B;
-    return a * t * t * t + b * t * t + c * t + d;
+    return ((a * t + b) * t + c) * t + d;
 }
 
 // Bicubic weight function
@@ -99,35 +99,99 @@ float4 bicubicSample(texture2d<float, access::sample> texture, sampler s, float2
     float2 pixel = floor(uv);
     float2 f = uv - pixel;
 
-    float4 result = float4(0.0);
+    float4 sampleValues[4][4];
 
+    // Sample the 4x4 neighborhood
     for (int m = -1; m <= 2; m++) {
-        float4 c0 = texture.sample(s, (pixel + float2(-1.0, m)) / textureSize);
-        float4 c1 = texture.sample(s, (pixel + float2( 0.0, m)) / textureSize);
-        float4 c2 = texture.sample(s, (pixel + float2( 1.0, m)) / textureSize);
-        float4 c3 = texture.sample(s, (pixel + float2( 2.0, m)) / textureSize);
-
-        float4 row = float4(
-            cubicHermite(c0.x, c1.x, c2.x, c3.x, f.x),
-            cubicHermite(c0.y, c1.y, c2.y, c3.y, f.x),
-            cubicHermite(c0.z, c1.z, c2.z, c3.z, f.x),
-            cubicHermite(c0.w, c1.w, c2.w, c3.w, f.x)
-        );
-
-        float weight = cubicHermite(0.0, 1.0, 0.0, 0.0, f.y + m);
-        result += row * weight;
+        for (int n = -1; n <= 2; n++) {
+            float2 coord = (pixel + float2(n, m)) / textureSize;
+            coord = clamp(coord, 0.0, 1.0); // Clamp to texture bounds
+            sampleValues[m + 1][n + 1] = texture.sample(s, coord);
+        }
     }
+
+    // Interpolate along x for each row
+    float4 colValues[4];
+    for (int m = 0; m < 4; m++) {
+        colValues[m] = float4(
+            cubicHermite(sampleValues[m][0].x, sampleValues[m][1].x, sampleValues[m][2].x, sampleValues[m][3].x, f.x),
+            cubicHermite(sampleValues[m][0].y, sampleValues[m][1].y, sampleValues[m][2].y, sampleValues[m][3].y, f.x),
+            cubicHermite(sampleValues[m][0].z, sampleValues[m][1].z, sampleValues[m][2].z, sampleValues[m][3].z, f.x),
+            cubicHermite(sampleValues[m][0].w, sampleValues[m][1].w, sampleValues[m][2].w, sampleValues[m][3].w, f.x)
+        );
+    }
+
+    // Interpolate along y using the results from x interpolation
+    float4 result = float4(
+        cubicHermite(colValues[0].x, colValues[1].x, colValues[2].x, colValues[3].x, f.y),
+        cubicHermite(colValues[0].y, colValues[1].y, colValues[2].y, colValues[3].y, f.y),
+        cubicHermite(colValues[0].z, colValues[1].z, colValues[2].z, colValues[3].z, f.y),
+        cubicHermite(colValues[0].w, colValues[1].w, colValues[2].w, colValues[3].w, f.y)
+    );
 
     return result;
 }
 
+// Function to convert RGB to HSV
+float3 rgbToHsv(float3 c) {
+    float4 K = float4(0.0, -1.0/3.0, 2.0/3.0, -1.0);
+    float4 p = mix(float4(c.bg, K.wz), float4(c.gb, K.xy), step(c.b, c.g));
+    float4 q = mix(float4(p.xyw, c.r), float4(c.r, p.yzx), step(p.x, c.r));
+
+    float d = q.x - min(q.w, q.y);
+    float e = 1.0e-10;
+    return float3(abs(q.z + (q.w - q.y) / (6.0 * d + e)), d / (q.x + e), q.x);
+}
+
+// Function to convert HSV back to RGB
+float3 hsvToRgb(float3 c) {
+    float4 K = float4(1.0, 2.0/3.0, 1.0/3.0, 3.0);
+    float3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
+    return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+}
+
+float4 extractBrightAreas(float4 color, float threshold) {
+    float luminance = dot(color.rgb, float3(0.299, 0.587, 0.114));
+    float mask = step(threshold, luminance);
+    return color * mask;
+}
+
+// 1D Gaussian blur function
+float4 gaussianBlur1D(texture2d<float, access::sample> texture, sampler s, float2 uv, float2 textureSize, float2 direction, float sigma) {
+    const int kernelSize = 9; // Adjust for desired blur size (must be odd)
+    const int radius = (kernelSize - 1) / 2;
+    float weights[kernelSize];
+    float totalWeight = 0.0;
+
+    // Precompute Gaussian weights
+    for (int i = 0; i < kernelSize; ++i) {
+        int x = i - radius;
+        float weight = exp(-float(x * x) / (2.0 * sigma * sigma));
+        weights[i] = weight;
+        totalWeight += weight;
+    }
+
+    // Normalize weights
+    for (int i = 0; i < kernelSize; ++i) {
+        weights[i] /= totalWeight;
+    }
+
+    // Apply blur
+    float4 result = float4(0.0);
+    for (int i = -radius; i <= radius; ++i) {
+        float2 offset = float2(i) * direction / textureSize;
+        result += texture.sample(s, uv + offset) * weights[i + radius];
+    }
+
+    return result;
+}
 
 // Fragment shader with pixelated upscaling and corrected corner vignette effect
 fragment float4 fragment_main(VertexOut in [[stage_in]],
                               texture2d<float, access::sample> inputTexture [[texture(0)]]) {
     
     // Sampler with linear filtering and clamped addressing
-    constexpr sampler texSampler(mag_filter::linear, min_filter::linear, address::clamp_to_edge);
+    constexpr sampler texSampler(mag_filter::nearest, min_filter::nearest, address::repeat);
 
     float2 textureSize = float2(inputTexture.get_width(), inputTexture.get_height());
     float2 uv = in.texCoord;
@@ -141,34 +205,22 @@ fragment float4 fragment_main(VertexOut in [[stage_in]],
     // Adjust UV coordinates for zoom
     uv = (uv - center) / zoomFactor + center;
 */
-   // Clamp UV coordinates to avoid sampling outside texture bounds
-   uv = clamp(uv, 0.0, 1.0);
 
    // First: upscale with bicubic interpolation
    float4 color = bicubicSample(inputTexture, texSampler, uv, textureSize);
+    
+    // Clamp UV coordinates to avoid sampling outside texture bounds
+    uv = clamp(uv, 0.0, 1.0);
 
    // Then: apply slight blur with specified radius
-   int blurRadius = 1; // Adjust the blur radius as needed (max is MAX_RADIUS)
-   color = gaussianBlur(inputTexture, texSampler, uv, textureSize, blurRadius);
+   //int blurRadius = 2; // Adjust the blur radius as needed (max is MAX_RADIUS)
+   //color = gaussianBlur(inputTexture, texSampler, uv, textureSize, blurRadius);
 
-
-    // Calculate distances from the four corners
-    float distTL = distance(uv, float2(0.0, 1.0)); // Top-left corner
-    float distTR = distance(uv, float2(1.0, 1.0)); // Top-right corner
-    float distBL = distance(uv, float2(0.0, 0.0)); // Bottom-left corner
-    float distBR = distance(uv, float2(1.0, 0.0)); // Bottom-right corner
-
-    // Find the minimum distance to any corner
-    float cornerDist = min(min(distTL, distTR), min(distBL, distBR));
-
-    // Apply smoothstep to create a smooth vignette effect in the corners
-    float vignetteStart = 0.0;  // Distance where vignette effect is strongest (at the corner)
-    float vignetteEnd = 0.5;    // Distance where vignette effect fades out
-    float vignette = 1.0 - smoothstep(vignetteStart, vignetteEnd, cornerDist);
-
-    // Adjust the vignette intensity
-    float vignetteIntensity = 0.4; // Adjust intensity between 0.0 and 1.0
-    color.rgb *= (1.0 - vignetteIntensity * vignette);
+    // Vignette effect
+    float dist = distance(uv, center);
+    float vignette = smoothstep(0.5, 0.8, dist);
+    float vignetteIntensity = 0.5;
+    color.rgb *= mix(1.0, 1.0 - vignetteIntensity, vignette);
     
     // Diminish the center
     float distCenter = distance(uv, center);
@@ -177,12 +229,8 @@ fragment float4 fragment_main(VertexOut in [[stage_in]],
     float centerDiminish = smoothstep(centerDiminishStart, centerDiminishEnd, distCenter);
 
     // Adjust the center diminishing intensity
-    float centerDiminishIntensity = 0.2; // Adjust intensity between 0.0 and 1.0
+    float centerDiminishIntensity = 0.3; // Adjust intensity between 0.0 and 1.0
     color.rgb *= (1.0 - centerDiminishIntensity * (1.0 - centerDiminish));
-
-    // Apply gamma correction to adjust brightness
-    float gamma = 1.15;
-    color.rgb = pow(color.rgb, float3(1.0 / gamma));
 
     // Add grain effect for texture
     float grainAmount = 0.05;
@@ -190,6 +238,44 @@ fragment float4 fragment_main(VertexOut in [[stage_in]],
     float grain = random(in.texCoord * textureSize) * grainAmount;
     color.rgb += float3(grain);
     
+    
+    // **Bloom Effect Approximation**
+
+    // Extract bright areas
+    float bloomThreshold = 0.7; // Adjust threshold as needed
+    float3 brightColor = max(color.rgb - bloomThreshold, 0.0) / (1.0 - bloomThreshold);
+
+    // Approximate bloom by sampling neighboring pixels
+    float bloomIntensity = 1.5; // Adjust bloom intensity
+    float3 bloom = float3(0.0);
+    int sampleCount = 8; // Number of samples
+    float radius = 5.0 / min(textureSize.x, textureSize.y); // Adjust radius
+
+    for (int i = 0; i < sampleCount; ++i) {
+        float angle = float(i) / float(sampleCount) * 6.28318; // 2 * PI
+        float2 offset = float2(cos(angle), sin(angle)) * radius;
+        float2 sampleUV = uv + offset;
+        sampleUV = clamp(sampleUV, 0.0, 1.0);
+        float4 sampleColor = bicubicSample(inputTexture, texSampler, sampleUV, textureSize);
+        float3 sampleBright = max(sampleColor.rgb - bloomThreshold, 0.0) / (1.0 - bloomThreshold);
+        bloom += sampleBright;
+    }
+
+    bloom /= float(sampleCount);
+
+    // Combine bloom with original color
+    color.rgb += bloom * bloomIntensity;
+
+    
+    // **Boost saturation**
+    float3 hsv = rgbToHsv(color.rgb);
+    hsv.y = clamp(hsv.y * 1.2, 0.0, 1.0); // Increase saturation by 20%
+    color.rgb = hsvToRgb(hsv);
+    
+    // Apply gamma correction to adjust brightness
+    float gamma = 1.2; // Use a standard gamma value
+    color.rgb = pow(color.rgb, float3(1.0 / gamma));
+
     // Clamp the final color values to valid range
     color.rgb = clamp(color.rgb, 0.0, 1.0);
 

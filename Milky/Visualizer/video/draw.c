@@ -26,19 +26,39 @@ void clearFrame(uint8_t *frame, size_t frameSize) {
  * @param b      The blue component value of the pixel.
  * @param a      The alpha (transparency) component value of the pixel.
  */
-void setPixel(uint8_t *frame, size_t width, size_t height, size_t x, size_t y, uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
-    // Ensure x and y are within bounds
-    if (x >= width || y >= height) return;
+void setPixel(uint8_t *frame, size_t canvasWidthPx, size_t canvasHeightPx,
+              int x, int y, uint8_t srcR, uint8_t srcG, uint8_t srcB, uint8_t srcA) {
+    if (x < 0 || x >= (int)canvasWidthPx || y < 0 || y >= (int)canvasHeightPx) return;
 
-    // Calculate index and check it against the buffer size
-    size_t index = (y * width + x) * 4;
-    if (index + 3 >= width * height * 4) return; // Bounds check for frame
+    size_t index = (y * canvasWidthPx + x) * 4; // Assuming RGBA format
 
-    // set the RGBA values at the calculated index
-    frame[index] = r;     // set red component
-    frame[index + 1] = g; // set green component
-    frame[index + 2] = b; // set blue component
-    frame[index + 3] = a; // set alpha component
+    // Existing pixel values
+    uint8_t dstR = frame[index];
+    uint8_t dstG = frame[index + 1];
+    uint8_t dstB = frame[index + 2];
+    uint8_t dstA = frame[index + 3];
+
+    // Convert alpha values to floats in range [0,1]
+    float srcAlpha = srcA / 255.0f;
+    float dstAlpha = dstA / 255.0f;
+
+    // Compute the output alpha
+    float outAlpha = srcAlpha + dstAlpha * (1.0f - srcAlpha);
+
+    // Avoid division by zero
+    if (outAlpha == 0.0f) {
+        frame[index]     = 0;
+        frame[index + 1] = 0;
+        frame[index + 2] = 0;
+        frame[index + 3] = 0;
+        return;
+    }
+
+    // Blend the colors
+    frame[index]     = (uint8_t)(((srcR * srcAlpha) + (dstR * dstAlpha * (1.0f - srcAlpha))) / outAlpha);
+    frame[index + 1] = (uint8_t)(((srcG * srcAlpha) + (dstG * dstAlpha * (1.0f - srcAlpha))) / outAlpha);
+    frame[index + 2] = (uint8_t)(((srcB * srcAlpha) + (dstB * dstAlpha * (1.0f - srcAlpha))) / outAlpha);
+    frame[index + 3] = (uint8_t)(outAlpha * 255.0f);
 }
 
 /**

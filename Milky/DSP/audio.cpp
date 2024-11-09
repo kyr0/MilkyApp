@@ -20,8 +20,8 @@ static double lastFpsLogTime = 0;
 static int audioFrameCounter = 0;
 static double lastAudioUpdateTime = 0;
 static double lastFFTUpdateTime = 0;
-const double audioUpdateInterval = 1.0 / 60.0; // 30 updates per second
-const double fftUpdateInterval = 1.0 / 15.0;   // 15 updates per second
+const double audioUpdateInterval = 1.0 / 90.0; // 30 updates per second
+const double fftUpdateInterval = 1.0 / 20.0;   // 15 updates per second
 const double fpsLogInterval = 1.0;             // Log FPS every second
 
 // Initialize an FFT processor for a specific size

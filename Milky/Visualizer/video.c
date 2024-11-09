@@ -67,6 +67,13 @@ static size_t milky_videoLastCanvasHeightPx = 0;
 
                // Only update memory if canvas size changes
                reserveAndUpdateMemory(canvasWidthPx, canvasHeightPx, frame, frameSize);
+             
+             // Process emphasized waveform
+             float emphasizedWaveform[waveformLength];
+             smoothBassEmphasizedWaveform(waveform, waveformLength, emphasizedWaveform, canvasWidthPx, 0.7f);
+     
+                // Pre-calculate time frame and constants outside of per-pixel rendering for efficiency
+                const float timeFrame = (milky_videoPrevTime == 0) ? 0.01f : (currentTime - milky_videoPrevTime) / 1000.0f;
 
                // Optimize buffer copies for NEON by vectorizing the copying operation
                // Copy the previous frame to a temporary buffer, minimizing redundant operations
@@ -77,9 +84,9 @@ static size_t milky_videoLastCanvasHeightPx = 0;
                } else {
                    milky_videoSpeedScalar += speed;
 
-                   blurFrame(milky_videoPrevFrame, frameSize);
+                   blurFrame(milky_videoPrevFrame, frameSize, 2, 0.9f);
                    preserveMassFade(milky_videoPrevFrame, milky_videoTempBuffer, frameSize);
-
+                   
                    #ifdef __ARM_NEON__
                    size_t i = 0;
                    for (; i + 16 <= frameSize; i += 16) {
@@ -97,12 +104,7 @@ static size_t milky_videoLastCanvasHeightPx = 0;
                    #endif
                }
 
-               // Process emphasized waveform
-               float emphasizedWaveform[waveformLength];
-               smoothBassEmphasizedWaveform(waveform, waveformLength, emphasizedWaveform, canvasWidthPx, 0.7f);
 
-               // Pre-calculate time frame and constants outside of per-pixel rendering for efficiency
-               const float timeFrame = (milky_videoPrevTime == 0) ? 0.01f : (currentTime - milky_videoPrevTime) / 1000.0f;
                milky_videoPrevTime = currentTime;
 
                // Apply color palette for visual effects
@@ -111,7 +113,10 @@ static size_t milky_videoLastCanvasHeightPx = 0;
                // Render waveform with multiple emphasis levels
                //renderWaveformSimple(timeFrame, frame, canvasWidthPx, canvasHeightPx, emphasizedWaveform, waveformLength, 0.85f, 1, 1);
                renderWaveformSimple(timeFrame, frame, canvasWidthPx, canvasHeightPx, emphasizedWaveform, waveformLength, 5.0f, 0, 0);
-
+               renderWaveformSimple(timeFrame, frame, canvasWidthPx, canvasHeightPx, emphasizedWaveform, waveformLength, 0.0f, 1, 0);
+     
+              //preserveMassFade(frame, milky_videoPrevFrame, frameSize);
+     
                detectEnergySpike(waveform, spectrum, waveformLength, spectrumLength, sampleRate);
 
                renderChasers(milky_videoSpeedScalar, frame, speed * 20, 2, canvasWidthPx, canvasHeightPx, 42, 2);
@@ -124,7 +129,7 @@ static size_t milky_videoLastCanvasHeightPx = 0;
                // TODO: this could be done in a Metal shader
                rotate(timeFrame, milky_videoTempBuffer, frame, 0.02 * currentTime, 0.85, canvasWidthPx, canvasHeightPx);
                scale(frame, milky_videoTempBuffer, 1.35f, canvasWidthPx, canvasHeightPx);
-
+     
                // Copy the final frame to the previous frame buffer
                #ifdef __ARM_NEON__
                size_t j = 0;

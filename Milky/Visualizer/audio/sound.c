@@ -19,7 +19,7 @@ void smoothBassEmphasizedWaveform(
     float totalOffset = 0.0f;
     // smoothing shows the bass hits more than treble
     for (size_t i = 0; i < waveformLength - 2; i++) {
-        float smoothedValue = volumeScale * (0.1 * waveform[i] + 0.2 * waveform[i + 2]);
+        float smoothedValue = volumeScale * (0.6 * waveform[i] + 0.2 * waveform[i + 2]);
         formattedWaveform[i] = smoothedValue;
         totalOffset += smoothedValue - waveform[i];
     }
@@ -235,6 +235,148 @@ void drawLineWu(uint8_t *frame, size_t canvasWidthPx, size_t canvasHeightPx,
     }
 }
 
+// Anti-aliased line drawing function using Gupta-Sproull algorithm
+void drawLineFade(uint8_t *frame, size_t canvasWidthPx, size_t canvasHeightPx,
+                  int x0, int y0, int x1, int y1,
+                  uint8_t r, uint8_t g, uint8_t b,
+                  float startAlpha, float endAlpha) {
+    int dx = abs(x1 - x0);
+    int dy = -abs(y1 - y0);
+
+    int sx = (x0 < x1) ? 1 : -1;
+    int sy = (y0 < y1) ? 1 : -1;
+    int err = dx + dy;
+
+    int length = (int)sqrtf((x1 - x0) * (x1 - x0) + (y1 - y0) * (y1 - y0));
+    int currentStep = 0;
+
+    while (true) {
+        // Calculate alpha based on the progress along the line
+        float t = (length == 0) ? 0.0f : (float)currentStep / length;
+        float alpha = startAlpha * (1.0f - t) + endAlpha * t;
+        uint8_t alphaByte = (uint8_t)(alpha * 255.0f);
+
+        setPixel(frame, canvasWidthPx, canvasHeightPx, x0, y0, r, g, b, alphaByte);
+
+        if (x0 == x1 && y0 == y1) break;
+        int e2 = 2 * err;
+
+        if (e2 >= dy) {
+            err += dy;
+            x0 += sx;
+        }
+        if (e2 <= dx) {
+            err += dx;
+            y0 += sy;
+        }
+
+        currentStep++;
+    }
+}
+
+// Anti-aliased line drawing function using Gupta-Sproull algorithm
+void drawLineAntiAliased(uint8_t *frame, size_t canvasWidthPx, size_t canvasHeightPx,
+                         int x0, int y0, int x1, int y1,
+                         uint8_t r, uint8_t g, uint8_t b, float baseAlpha) {
+    int dx = abs(x1 - x0);
+    int dy = abs(y1 - y0);
+
+    // Determine the direction of the line
+    int sx = (x0 < x1) ? 1 : -1;
+    int sy = (y0 < y1) ? 1 : -1;
+
+    bool steep = dy > dx;
+    if (steep) {
+        // Swap x and y
+        int temp;
+        temp = x0; x0 = y0; y0 = temp;
+        temp = x1; x1 = y1; y1 = temp;
+        temp = dx; dx = dy; dy = temp;
+        temp = sx; sx = sy; sy = temp;
+    }
+
+    // Initialize variables
+    int twoDy = 2 * dy;
+    int twoDyDx = 2 * (dy - dx);
+    int e = twoDy - dx;
+    int x = x0;
+    int y = y0;
+
+    // Precompute constants for intensity calculation
+    float invDenom = 1.0f / (2.0f * sqrtf(dx * dx + dy * dy));
+
+    for (int i = 0; i <= dx; i++) {
+        // Calculate pixel intensity
+        float distance = fabsf(e) * invDenom;
+        float intensityF = (1.0f - distance) * baseAlpha;
+        uint8_t intensity = (uint8_t)(intensityF * 255.0f);
+
+        if (steep) {
+            // Swap back x and y
+            setPixel(frame, canvasWidthPx, canvasHeightPx, y, x, r, g, b, intensity);
+        } else {
+            setPixel(frame, canvasWidthPx, canvasHeightPx, x, y, r, g, b, intensity);
+        }
+
+        // Move to the next pixel
+        if (e >= 0) {
+            y += sy;
+            e += twoDyDx;
+        } else {
+            e += twoDy;
+        }
+        x += sx;
+    }
+}
+
+void drawHorizontalLineWithEdgeSmoothing(uint8_t *frame, size_t canvasWidthPx, size_t canvasHeightPx,
+                                         const float *waveform, size_t waveformLength,
+                                         uint8_t r, uint8_t g, uint8_t b, float globalAlphaFactor,
+                                         int32_t yOffset) {
+    int32_t halfCanvasHeight = (int32_t)(canvasHeightPx / 2);
+
+    for (size_t x = 0; x < canvasWidthPx; x++) {
+        // Map x to waveform index
+        float t = (float)x / (canvasWidthPx - 1);
+        size_t i = (size_t)(t * (waveformLength - 1));
+
+        float sampleValue = waveform[i];
+
+        int y = halfCanvasHeight - ((int)((sampleValue - 128.0f - milky_soundAverageOffset) * canvasHeightPx) / 512) + yOffset;
+        y = (y >= (int)canvasHeightPx) ? (int)canvasHeightPx - 1 : ((y < 0) ? 0 : y);
+
+        // Compute alpha
+        uint8_t alpha = (uint8_t)(255 * globalAlphaFactor);
+
+        // Draw main pixel
+        setPixel(frame, canvasWidthPx, canvasHeightPx, x, y, r, g, b, alpha);
+
+        // Overdraw pixel above with 50% alpha of its existing color
+        if (y > 0) {
+            size_t indexAbove = ((y - 1) * canvasWidthPx + x) * 4;
+            uint8_t existingR = frame[indexAbove];
+            uint8_t existingG = frame[indexAbove + 1];
+            uint8_t existingB = frame[indexAbove + 2];
+            uint8_t existingA = frame[indexAbove + 3];
+
+            // Overdraw with 50% alpha of existing color
+            setPixel(frame, canvasWidthPx, canvasHeightPx, x, y - 1, existingR, existingG, existingB, 128);
+        }
+
+        // Overdraw pixel below with 50% alpha of its existing color
+        if (y < (int)canvasHeightPx - 1) {
+            size_t indexBelow = ((y + 1) * canvasWidthPx + x) * 4;
+            uint8_t existingR = frame[indexBelow];
+            uint8_t existingG = frame[indexBelow + 1];
+            uint8_t existingB = frame[indexBelow + 2];
+            uint8_t existingA = frame[indexBelow + 3];
+
+            // Overdraw with 50% alpha of existing color
+            setPixel(frame, canvasWidthPx, canvasHeightPx, x, y + 1, existingR, existingG, existingB, 128);
+        }
+    }
+}
+
 void renderWaveformSimple(
     float timeFrame,
     uint8_t *frame,
@@ -246,36 +388,69 @@ void renderWaveformSimple(
     int32_t yOffset,
     int32_t xOffset
 ) {
-    float waveformScaleX = (float)canvasWidthPx / waveformLength;
-    float halfCanvasHeight = (float)(canvasHeightPx / 2);
-    float inverse255 = 1.0f / 255.0f;
+    int32_t halfCanvasHeight = (int32_t)(canvasHeightPx / 2);
 
+    // Optionally cache the waveform if needed
     if (milky_soundFrameCounter % 2 == 0) {
         memcpy(milky_soundCachedWaveform, emphasizedWaveform, waveformLength * sizeof(float));
     }
     milky_soundFrameCounter++;
 
-    for (size_t i = 0; i < waveformLength - 1; i++) {
-        // Compute coordinates for the first point
-        float x1 = (i * waveformScaleX) + xOffset;
-        x1 = (x1 >= canvasWidthPx) ? (float)(canvasWidthPx - 1) : x1;
+    // Loop over every x-coordinate on the canvas
+    for (int x = 0; x < (int)canvasWidthPx; x++) {
+        // Map x coordinate to waveform index
+        float t = (float)(x - xOffset) / (canvasWidthPx - 1);
+        t = t < 0.0f ? 0.0f : (t > 1.0f ? 1.0f : t);  // Clamp t to [0, 1]
+        size_t i = (size_t)(t * (waveformLength - 1));
 
-        float sampleValue1 = milky_soundCachedWaveform[i];
-        float y1 = halfCanvasHeight - ((sampleValue1 - 128.0f - milky_soundAverageOffset) * canvasHeightPx) / 512.0f + yOffset;
-        y1 = (y1 >= canvasHeightPx) ? (float)(canvasHeightPx - 1) : ((y1 < 0.0f) ? 0.0f : y1);
+        // Get the sample value
+        float sampleValue = milky_soundCachedWaveform[i];
 
-        // Compute coordinates for the second point
-        float x2 = ((i + 1) * waveformScaleX) + xOffset;
-        x2 = (x2 >= canvasWidthPx) ? (float)(canvasWidthPx - 1) : x2;
-
-        float sampleValue2 = milky_soundCachedWaveform[i + 1];
-        float y2 = halfCanvasHeight - ((sampleValue2 - 128.0f - milky_soundAverageOffset) * canvasHeightPx) / 512.0f + yOffset;
-        y2 = (y2 >= canvasHeightPx) ? (float)(canvasHeightPx - 1) : ((y2 < 0.0f) ? 0.0f : y2);
+        // Compute y coordinate
+        int y = halfCanvasHeight - ((int)((sampleValue - 128.0f - milky_soundAverageOffset) * canvasHeightPx) / 512) + yOffset;
+        // Adjust y to ensure we have space for 2 pixels height
+        y = (y >= (int)canvasHeightPx - 2) ? (int)canvasHeightPx - 3 : ((y < 0) ? 0 : y);
 
         // Compute alpha
-        float alpha = (1.0f - (sampleValue1 * inverse255)) * globalAlphaFactor;
+        uint8_t alpha = (uint8_t)(255 * globalAlphaFactor);
 
-        // Draw anti-aliased line
-        drawLineWu(frame, canvasWidthPx, canvasHeightPx, x1, y1, x2, y2, 255, 255, 255, alpha);
+        // Draw main line with thickness of 2 pixels
+        setPixel(frame, canvasWidthPx, canvasHeightPx, x, y, 255, 255, 255, alpha);
+        setPixel(frame, canvasWidthPx, canvasHeightPx, x, y + 1, 255, 255, 255, alpha);
+
+        // Smooth the edges above and below the line
+        // Blend pixel above the line
+        if (y > 0) {
+            // Read the existing color of the pixel above
+            size_t indexAbove = ((y - 1) * canvasWidthPx + x) * 4;
+            uint8_t existingR = frame[indexAbove];
+            uint8_t existingG = frame[indexAbove + 1];
+            uint8_t existingB = frame[indexAbove + 2];
+
+            // Blend with the line color at 50% alpha
+            uint8_t blendedR = (existingR + 255) / 2;
+            uint8_t blendedG = (existingG + 255) / 2;
+            uint8_t blendedB = (existingB + 255) / 2;
+
+            // Overwrite the pixel above with the blended color and 50% alpha
+            setPixel(frame, canvasWidthPx, canvasHeightPx, x, y - 1, blendedR, blendedG, blendedB, 128);
+        }
+
+        // Blend pixel below the line
+        if (y < (int)canvasHeightPx - 3) {
+            // Read the existing color of the pixel below
+            size_t indexBelow = ((y + 2) * canvasWidthPx + x) * 4;
+            uint8_t existingR = frame[indexBelow];
+            uint8_t existingG = frame[indexBelow + 1];
+            uint8_t existingB = frame[indexBelow + 2];
+
+            // Blend with the line color at 50% alpha
+            uint8_t blendedR = (existingR + 255) / 2;
+            uint8_t blendedG = (existingG + 255) / 2;
+            uint8_t blendedB = (existingB + 255) / 2;
+
+            // Overwrite the pixel below with the blended color and 50% alpha
+            setPixel(frame, canvasWidthPx, canvasHeightPx, x, y + 2, blendedR, blendedG, blendedB, 128);
+        }
     }
 }
