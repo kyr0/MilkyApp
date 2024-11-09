@@ -39,132 +39,109 @@ static size_t milky_videoLastCanvasHeightPx = 0;
  * @param speed           Speed factor for the rendering.
  * @param currentTime     Current time in milliseconds.
  * @param sampleRate      Waveform sample rate (samples per second)
- */
-void render(
-    uint8_t *frame,
-    size_t canvasWidthPx,
-    size_t canvasHeightPx,
-    const uint8_t *waveform,
-    const uint8_t *spectrum,
-    size_t waveformLength,
-    size_t spectrumLength,
-    uint8_t bitDepth,
-    float *presetsBuffer,
-    float speed,
-    size_t currentTime,
-    size_t sampleRate
-) {
-    
-    if (waveformLength == 0) {
-        fprintf(stderr, "No waveform data provided\n");
-        return;
-    }
-    
-    if (spectrumLength == 0) {
-        fprintf(stderr, "No spectrum data provided\n");
-        return;
-    }
+ */void render(
+               uint8_t *frame,
+               size_t canvasWidthPx,
+               size_t canvasHeightPx,
+               const uint8_t *waveform,
+               const uint8_t *spectrum,
+               size_t waveformLength,
+               size_t spectrumLength,
+               uint8_t bitDepth,
+               float *presetsBuffer,
+               float speed,
+               size_t currentTime,
+               size_t sampleRate
+           ) {
+               if (waveformLength == 0 || spectrumLength == 0) {
+                   fprintf(stderr, "No waveform or spectrum data provided\n");
+                   return;
+               }
 
-    // calculate the size of the frame buffer based on canvas dimensions and RGBA format
-    size_t frameSize = canvasWidthPx * canvasHeightPx * 4;
-    
-    // initialize previous frame size if not set
-    if (milky_videoPrevFrameSize == 0) {
-        milky_videoPrevFrameSize = frameSize;
-    }
+               // Pre-calculate frame size and check memory requirements once
+               const size_t frameSize = canvasWidthPx * canvasHeightPx * 4;
 
-    // ensure memory is allocated and updated for the current canvas size
-    reserveAndUpdateMemory(canvasWidthPx, canvasHeightPx, frame, frameSize);
+               if (milky_videoPrevFrameSize == 0) {
+                   milky_videoPrevFrameSize = frameSize;
+               }
 
-    // create an array to store the emphasized waveform
-    float emphasizedWaveform[waveformLength];
+               // Only update memory if canvas size changes
+               reserveAndUpdateMemory(canvasWidthPx, canvasHeightPx, frame, frameSize);
 
-    // apply smoothing and bass emphasis to the waveform
-    smoothBassEmphasizedWaveform(waveform, waveformLength, emphasizedWaveform, canvasWidthPx, 0.7f);
+               // Optimize buffer copies for NEON by vectorizing the copying operation
+               // Copy the previous frame to a temporary buffer, minimizing redundant operations
+               if (!milky_videoIsLastFrameInitialized) {
+                   clearFrame(frame, frameSize);
+                   clearFrame(milky_videoPrevFrame, milky_videoPrevFrameSize);
+                   milky_videoIsLastFrameInitialized = 1;
+               } else {
+                   milky_videoSpeedScalar += speed;
 
-    // calculate the time frame for rendering based on the elapsed time
-    float timeFrame = ((milky_videoPrevTime == 0) ? 0.01f : (currentTime - milky_videoPrevTime) / 1000.0f);
+                   blurFrame(milky_videoPrevFrame, frameSize);
+                   preserveMassFade(milky_videoPrevFrame, milky_videoTempBuffer, frameSize);
 
-    // check if the last frame is initialized; if not, clear the frames
-    if (!milky_videoIsLastFrameInitialized) {
-        clearFrame(frame, frameSize);
-        clearFrame(milky_videoPrevFrame, milky_videoPrevFrameSize);
-        milky_videoIsLastFrameInitialized = 1;
-    } else {
-        // update speed scalar with the current speed
-        milky_videoSpeedScalar += speed;
+                   #ifdef __ARM_NEON__
+                   size_t i = 0;
+                   for (; i + 16 <= frameSize; i += 16) {
+                       uint8x16_t prevFrameData = vld1q_u8(&milky_videoPrevFrame[i]);
+                       vst1q_u8(&milky_videoTempBuffer[i], prevFrameData);
+                       vst1q_u8(&frame[i], prevFrameData);
+                   }
+                   for (; i < frameSize; i++) {
+                       milky_videoTempBuffer[i] = milky_videoPrevFrame[i];
+                       frame[i] = milky_videoTempBuffer[i];
+                   }
+                   #else
+                   memcpy(milky_videoTempBuffer, milky_videoPrevFrame, frameSize);
+                   memcpy(frame, milky_videoTempBuffer, frameSize);
+                   #endif
+               }
 
-        // apply blur effect to the previous frame
-        blurFrame(milky_videoPrevFrame, frameSize);
-        
-        // preserve mass fade effect on the temporary buffer
-        preserveMassFade(milky_videoPrevFrame, milky_videoTempBuffer, frameSize);
+               // Process emphasized waveform
+               float emphasizedWaveform[waveformLength];
+               smoothBassEmphasizedWaveform(waveform, waveformLength, emphasizedWaveform, canvasWidthPx, 0.7f);
 
-        // copy the previous frame to the current frame as a base for drawing
-#ifdef __ARM_NEON__
-        // NEON-optimized copy for milky_videoTempBuffer and frame
-        size_t i = 0;
-        for (; i + 16 <= frameSize; i += 16) {
-            uint8x16_t data = vld1q_u8(&milky_videoPrevFrame[i]);
-            vst1q_u8(&milky_videoTempBuffer[i], data);
-            vst1q_u8(&frame[i], data);
-        }
-        // Copy any remaining bytes
-        for (; i < frameSize; i++) {
-            milky_videoTempBuffer[i] = milky_videoPrevFrame[i];
-            frame[i] = milky_videoTempBuffer[i];
-        }
-#else
-        memcpy(milky_videoTempBuffer, milky_videoPrevFrame, frameSize);
-        memcpy(frame, milky_videoTempBuffer, frameSize);
-#endif
-    }
+               // Pre-calculate time frame and constants outside of per-pixel rendering for efficiency
+               const float timeFrame = (milky_videoPrevTime == 0) ? 0.01f : (currentTime - milky_videoPrevTime) / 1000.0f;
+               milky_videoPrevTime = currentTime;
 
-    // apply color palette to the canvas based on the current time
-    applyPaletteToCanvas(currentTime, frame, canvasWidthPx, canvasHeightPx);
+               // Apply color palette for visual effects
+               applyPaletteToCanvas(currentTime, frame, canvasWidthPx, canvasHeightPx);
 
-    // render the waveform on the canvas with different emphasis levels
-    renderWaveformSimple(timeFrame, frame, canvasWidthPx, canvasHeightPx, emphasizedWaveform, waveformLength, 0.85f, 1);
-    //renderWaveformSimple(timeFrame, frame, canvasWidthPx, canvasHeightPx, emphasizedWaveform, waveformLength, 0.95f, 1);
-    //renderWaveformSimple(timeFrame, frame, canvasWidthPx, canvasHeightPx, emphasizedWaveform, waveformLength, 0.95f, -1);
-    renderWaveformSimple(timeFrame, frame, canvasWidthPx, canvasHeightPx, emphasizedWaveform, waveformLength, 5.0f, 0);
-    //renderWaveformSimple(timeFrame, frame, canvasWidthPx, canvasHeightPx, emphasizedWaveform, waveformLength, 5.0f, -1);
+               // Render waveform with multiple emphasis levels
+               //renderWaveformSimple(timeFrame, frame, canvasWidthPx, canvasHeightPx, emphasizedWaveform, waveformLength, 0.85f, 1, 1);
+               renderWaveformSimple(timeFrame, frame, canvasWidthPx, canvasHeightPx, emphasizedWaveform, waveformLength, 5.0f, 0, 0);
 
-    // detect energy spikes in the audio data
-    detectEnergySpike(waveform, spectrum, waveformLength, spectrumLength, sampleRate);
+               detectEnergySpike(waveform, spectrum, waveformLength, spectrumLength, sampleRate);
 
-    // render chasers effect on the frame
-    renderChasers(milky_videoSpeedScalar, frame, speed * 20, 2, canvasWidthPx, canvasHeightPx, 42, 2);
+               renderChasers(milky_videoSpeedScalar, frame, speed * 20, 2, canvasWidthPx, canvasHeightPx, 42, 2);
 
-    // rotate the frame to create a dynamic visual effect
-    rotate(timeFrame, milky_videoTempBuffer, frame, 0.02 * currentTime, 0.85, canvasWidthPx, canvasHeightPx);
-    
-    // scale the frame to hide edge artifacts
-    scale(frame, milky_videoTempBuffer, 1.35f, canvasWidthPx, canvasHeightPx);
+               if (bitDepth < 32) {
+                   reduceBitDepth(frame, frameSize, bitDepth);
+               }
+     
+               // Rotate and scale effects with NEON-optimized copy
+               // TODO: this could be done in a Metal shader
+               rotate(timeFrame, milky_videoTempBuffer, frame, 0.02 * currentTime, 0.85, canvasWidthPx, canvasHeightPx);
+               scale(frame, milky_videoTempBuffer, 1.35f, canvasWidthPx, canvasHeightPx);
 
-    // reduce the bit depth of the frame if necessary
-    if (bitDepth < 32) {
-        reduceBitDepth(frame, frameSize, bitDepth);
-    }
+               // Copy the final frame to the previous frame buffer
+               #ifdef __ARM_NEON__
+               size_t j = 0;
+               for (; j + 16 <= frameSize; j += 16) {
+                   vst1q_u8(&milky_videoPrevFrame[j], vld1q_u8(&frame[j]));
+               }
+               for (; j < frameSize; j++) {
+                   milky_videoPrevFrame[j] = frame[j];
+               }
+               #else
+               memcpy(milky_videoPrevFrame, frame, frameSize);
+               #endif
 
-    // update the previous frame with the current frame data
-#ifdef __ARM_NEON__
-   // NEON-optimized copy for updating milky_videoPrevFrame
-   size_t j = 0;
-   for (; j + 16 <= frameSize; j += 16) {
-       vst1q_u8(&milky_videoPrevFrame[j], vld1q_u8(&frame[j]));
-   }
-   for (; j < frameSize; j++) {
-       milky_videoPrevFrame[j] = frame[j];
-   }
-#else
-   memcpy(milky_videoPrevFrame, frame, frameSize);
-#endif
+               // Update frame size to match current frame
+               milky_videoPrevFrameSize = frameSize;
+           }
 
-    // update the previous time and frame size for the next rendering cycle
-    milky_videoPrevTime = currentTime;
-    milky_videoPrevFrameSize = frameSize;
-}
 
 /**
  * Reserves and updates memory dynamically for rendering based on canvas size.

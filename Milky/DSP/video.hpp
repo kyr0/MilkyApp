@@ -32,6 +32,7 @@ void *renderLoop(void *arg);
 void startContinuousRender(
     uint8_t *frameBufferA,
     uint8_t *frameBufferB,
+   int32_t *sharedBufferIndex, 
     size_t canvasWidthPx,
     size_t canvasHeightPx,
     uint8_t bitDepth,

@@ -6,7 +6,7 @@ import os
 struct VisualizationConfig {
     var width: Int = 720
     var height: Int = 450
-    var oversamplingFactor: Int = 1
+    var oversamplingFactor: Double = 1.5
     var showFPS: Bool = true
     var fullscreenMode: Bool = false
     var bitDepth: Int = 32
@@ -23,8 +23,8 @@ struct ConfigView: View {
     @State private var detachedWindow: DetachedWindow?
     @State private var width: Int = 720
     @State private var height: Int = 450
-    @State private var oversamplingFactor: Int = 1
-    @State private var showFPS: Bool = true
+    @State private var oversamplingFactor: Double = 1.5
+    @State private var showFPS: Bool = false
     @State private var fullscreenMode: Bool = false
     @State private var bitDepth: Int = 32
     @State private var targetFPS: Int = 30
@@ -46,6 +46,7 @@ struct ConfigView: View {
                 HStack {
                     Picker("Oversampling", selection: $oversamplingFactor) {
                         Text("Off").tag(1)
+                        Text("1.5x").tag(1.5)
                         Text("2x").tag(2)
                         Text("4x").tag(4)
                     }

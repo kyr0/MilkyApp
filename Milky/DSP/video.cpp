@@ -8,9 +8,12 @@ static int displayBufferA = 1;
 static pthread_mutex_t bufferMutex = PTHREAD_MUTEX_INITIALIZER;
 static int renderLoopRunning = 1;
 
+// Atomic buffer index shared with Swift code
+static volatile int32_t *bufferIndex = NULL; // Pointer to volatile int32_t
+
 const useconds_t milky_minSleepTime = 1000; // Minimum sleep time (1 ms)
 const useconds_t milky_maxSleepTime = 33000; // Maximum sleep time (33 ms)
-const double milky_fpsAdjustmentFactor = 0.05; // Adjustment factor for sleep time
+const double milky_fpsAdjustmentFactor = 0.1; // Adjustment factor for sleep time
 
 extern "C" void render(
    uint8_t *frame,                 // Canvas frame buffer (RGBA format)
@@ -48,6 +51,12 @@ uint8_t *getWriteBuffer(void) {
     return isWritingToBufferA ? bufferA : bufferB;
 }
 
+
+// Memory barrier functions
+void memoryBarrier() {
+    __sync_synchronize();
+}
+
 // Render loop function
 void *renderLoop(void *arg) {
     RenderLoopArgs *args = (RenderLoopArgs *)arg;
@@ -55,6 +64,9 @@ void *renderLoop(void *arg) {
     size_t lastFpsLogTime = lastFrameTime;
     useconds_t sleepTime = 33000;
     double currentFPS = 0;
+    
+    // Initial buffer to write to
+    int currentBufferIndex = 0;
     
     while (renderLoopRunning) {
         size_t currentTime = getCurrentTimeMillis();
@@ -71,9 +83,9 @@ void *renderLoop(void *arg) {
         }
 
         lastFrameTime = currentTime;
-        
-        // Render frame
-        uint8_t *frameBuffer = getWriteBuffer();
+        // Select the buffer to write to
+       uint8_t *frameBuffer = (currentBufferIndex == 0) ? bufferA : bufferB;
+
         render(
             frameBuffer,
             args->canvasWidthPx,
@@ -89,6 +101,18 @@ void *renderLoop(void *arg) {
             args->sampleRate
         );
     
+        // Memory barrier to ensure writes are visible
+        memoryBarrier();
+
+        // Write to bufferIndex to indicate which buffer is ready
+        *bufferIndex = currentBufferIndex;
+
+        // Memory barrier to ensure bufferIndex write is visible
+        memoryBarrier();
+
+        // Toggle buffer index for next frame
+        currentBufferIndex = 1 - currentBufferIndex;
+        
         // Adjust sleep time based on FPS
         if (currentFPS < args->desiredFPS && sleepTime > milky_minSleepTime) {
             sleepTime = (useconds_t)(sleepTime * (1.0 - milky_fpsAdjustmentFactor));
@@ -121,6 +145,7 @@ size_t getCurrentTimeMillis(void) {
 void startContinuousRender(
    uint8_t *frameBufferA,
    uint8_t *frameBufferB,
+   int32_t *sharedBufferIndex, 
    size_t canvasWidthPx,
    size_t canvasHeightPx,
    uint8_t bitDepth,
@@ -134,6 +159,10 @@ void startContinuousRender(
 
     bufferA = frameBufferA;
     bufferB = frameBufferB;
+    bufferIndex = sharedBufferIndex; // Assign the shared buffer index
+
+    // Initialize bufferIndex to -1
+    *bufferIndex = -1;
 
     // Preallocate render loop arguments to avoid allocation within the loop
     RenderLoopArgs *args = (RenderLoopArgs *)malloc(sizeof(RenderLoopArgs));

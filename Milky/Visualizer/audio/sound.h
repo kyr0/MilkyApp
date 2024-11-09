@@ -6,6 +6,7 @@
 #include <math.h>
 #include <stddef.h>
 #include <stdlib.h>
+#include <stdbool.h>
 
 #include "../video/draw.h"
 
@@ -40,7 +41,8 @@ void renderWaveformSimple(
     const float *emphasizedWaveform,
     size_t waveformLength,
     float globalAlphaFactor,
-    int32_t yOffset
+    int32_t yOffset,
+    int32_t xOffset 
 );
 
 #endif // SOUND_H

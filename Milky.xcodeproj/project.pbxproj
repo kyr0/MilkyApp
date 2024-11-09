@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		844D168A2CDD5F5F00281347 /* video.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 844D16882CDD5F5F00281347 /* video.cpp */; };
 		844D168B2CDD5F5F00281347 /* audio.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 844D16862CDD5F5F00281347 /* audio.cpp */; };
+		844D168D2CDF20B300281347 /* Shaders.metal in Sources */ = {isa = PBXBuildFile; fileRef = 844D168C2CDF20AE00281347 /* Shaders.metal */; };
 		8499FA452CD70DF700BFD282 /* DetatchedWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8499FA442CD70DF100BFD282 /* DetatchedWindow.swift */; };
 		8499FA472CD70E1300BFD282 /* DetachedViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8499FA462CD70E0E00BFD282 /* DetachedViewController.swift */; };
 		8499FA522CD8054500BFD282 /* MetalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8499FA512CD8054500BFD282 /* MetalKit.framework */; };
@@ -41,6 +42,7 @@
 		844D16862CDD5F5F00281347 /* audio.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = audio.cpp; sourceTree = "<group>"; };
 		844D16872CDD5F5F00281347 /* video.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = video.hpp; sourceTree = "<group>"; };
 		844D16882CDD5F5F00281347 /* video.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = video.cpp; sourceTree = "<group>"; };
+		844D168C2CDF20AE00281347 /* Shaders.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = Shaders.metal; sourceTree = "<group>"; };
 		8499FA442CD70DF100BFD282 /* DetatchedWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetatchedWindow.swift; sourceTree = "<group>"; };
 		8499FA462CD70E0E00BFD282 /* DetachedViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetachedViewController.swift; sourceTree = "<group>"; };
 		8499FA512CD8054500BFD282 /* MetalKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MetalKit.framework; path = System/Library/Frameworks/MetalKit.framework; sourceTree = SDKROOT; };
@@ -206,6 +208,7 @@
 		F47AD9402BF5B61E005B75AC /* Milky */ = {
 			isa = PBXGroup;
 			children = (
+				844D168C2CDF20AE00281347 /* Shaders.metal */,
 				844D16892CDD5F5F00281347 /* DSP */,
 				8499FA912CD83FB900BFD282 /* Visualizer */,
 				8499FA462CD70E0E00BFD282 /* DetachedViewController.swift */,
@@ -305,6 +308,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				844D168D2CDF20B300281347 /* Shaders.metal in Sources */,
 				F43172902BF6A92900D918A3 /* AudioProcessController.swift in Sources */,
 				F43172942BF6B01000D918A3 /* ProcessTap.swift in Sources */,
 				F43172922BF6ABB000D918A3 /* ProcessSelectionView.swift in Sources */,
