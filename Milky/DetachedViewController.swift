@@ -6,15 +6,6 @@ struct RenderSize {
     var height: Int
 }
 
-// Assuming VisualizationConfig is defined elsewhere
-// struct VisualizationConfig {
-//     var width: Int
-//     var height: Int
-//     var bitDepth: Int
-//     var oversamplingFactor: Int
-//     var targetFPS: Int
-// }
-
 class DetachedViewController: NSViewController, NSWindowDelegate, MTKViewDelegate {
     var metalView: MTKView!
     var fpsLabel: NSTextField!
