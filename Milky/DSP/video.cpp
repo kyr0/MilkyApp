@@ -8,6 +8,10 @@ static int displayBufferA = 1;
 static pthread_mutex_t bufferMutex = PTHREAD_MUTEX_INITIALIZER;
 static int renderLoopRunning = 1;
 
+static double milky_lastFrameTime = 0;
+static double milky_fps = 0;
+static double milky_lastFpsLogTime = 0;
+
 extern "C" void render(
    uint8_t *frame,                 // Canvas frame buffer (RGBA format)
    size_t canvasWidthPx,           // Canvas width in pixels
@@ -52,7 +56,18 @@ void *renderLoop(void *arg) {
         size_t currentTime = getCurrentTimeMillis();
 
         uint8_t *frameBuffer = getWriteBuffer();
-
+        
+        // Calculate FPS
+        if (currentTime - milky_lastFpsLogTime >= 1000) {
+            double deltaTime = (currentTime - milky_lastFrameTime) / 1000.0;  // Convert to seconds
+            if (deltaTime > 0) {
+                milky_fps = 1.0 / deltaTime;
+                milky_lastFpsLogTime = currentTime;
+                fprintf(stdout, "Render FPS: %.2f\n", milky_fps);
+            }
+        }
+        milky_lastFrameTime = currentTime;
+        
         render(
             frameBuffer,
             args->canvasWidthPx,

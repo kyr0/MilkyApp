@@ -26,6 +26,7 @@ class DetachedViewController: NSViewController, NSWindowDelegate {
     var width = 320
     var height = 200
     var lastFrameTime = Date()
+    private var lastFpsLogTime: TimeInterval = 0
     
     var config: VisualizationConfig?
     var renderSize: RenderSize = RenderSize(width: 320, height: 200)
@@ -128,7 +129,10 @@ class DetachedViewController: NSViewController, NSWindowDelegate {
         
         // Update FPS label
         if (config?.showFPS == true) {
-            fpsLabel.stringValue = String(format: "FPS: %.2f", currentFPS)
+            if currentTime.timeIntervalSinceReferenceDate - lastFpsLogTime >= 1.0 {
+                fpsLabel.stringValue = String(format: "Paint FPS: %d", Int(currentFPS))
+                lastFpsLogTime = currentTime.timeIntervalSinceReferenceDate
+            }
         } else {
             fpsLabel.stringValue = ""
         }
