@@ -1,16 +1,4 @@
-#include <stdio.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <sched.h>
-#include "../Visualizer/video.h"
-
-// Global audio data variables
-static uint8_t globalWaveform[4096];   // Adjust size as needed
-static uint8_t globalSpectrum[2048];   // Adjust size as needed
-static size_t globalWaveformLength = 0;
-static size_t globalSpectrumLength = 0;
-static int renderLoopRunning = 1;
-static pthread_mutex_t audioDataMutex = PTHREAD_MUTEX_INITIALIZER;
+#include "video.hpp"
 
 // Double-buffering variables
 static uint8_t *bufferA = NULL;
@@ -18,6 +6,7 @@ static uint8_t *bufferB = NULL;
 static int isWritingToBufferA = 1;
 static int displayBufferA = 1;
 static pthread_mutex_t bufferMutex = PTHREAD_MUTEX_INITIALIZER;
+static int renderLoopRunning = 1;
 
 extern "C" void render(
    uint8_t *frame,                 // Canvas frame buffer (RGBA format)
@@ -53,21 +42,6 @@ void toggleBuffer(void) {
 // Function to get the active buffer for writing
 uint8_t *getWriteBuffer(void) {
     return isWritingToBufferA ? bufferA : bufferB;
-}
-
-// Update audio data
-void updateAudioData(const uint8_t *waveform, const uint8_t *spectrum, size_t waveformLength, size_t spectrumLength) {
-    pthread_mutex_lock(&audioDataMutex);
-    
-    // Ensure we don't overflow the global buffers
-    globalWaveformLength = (waveformLength <= sizeof(globalWaveform)) ? waveformLength : sizeof(globalWaveform);
-    globalSpectrumLength = (spectrumLength <= sizeof(globalSpectrum)) ? spectrumLength : sizeof(globalSpectrum);
-    
-    // Copy data into the global buffers
-    memcpy(globalWaveform, waveform, globalWaveformLength);
-    memcpy(globalSpectrum, spectrum, globalSpectrumLength);
-    
-    pthread_mutex_unlock(&audioDataMutex);
 }
 
 // Render loop function

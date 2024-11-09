@@ -11,10 +11,14 @@
 #include <cmath>
 #include <memory>
 
-#include "video.hpp"
-
 #define NUM_FFT_SIZES 5
 extern const int fftSizes[NUM_FFT_SIZES]; // Declare fftSizes as extern
+
+// Declare the variables as extern for global access
+extern uint8_t globalWaveform[4096];
+extern uint8_t globalSpectrum[2048];
+extern size_t globalWaveformLength;
+extern size_t globalSpectrumLength;
 
 // Structure to hold FFT setup and buffers for real and imaginary components
 typedef struct {
@@ -42,6 +46,8 @@ void performFFT(const float *samples, int sampleCount, unsigned char *frequencyB
 
 // Helper function to get the current time in seconds
 double getCurrentTimeInSeconds(void);
+
+void updateAudioData(const uint8_t *waveform, const uint8_t *spectrum, size_t waveformLength, size_t spectrumLength);
 
 // Functions to start and stop audio capture
 void StartAudioCapture(AudioObjectID aggregatedDeviceId, AudioDeviceIOProcID *deviceProcID);

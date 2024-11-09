@@ -4,6 +4,14 @@
 static FFTManager *fftManager = NULL;
 const int fftSizes[NUM_FFT_SIZES] = {128, 256, 512, 1024, 2048};
 
+// Global audio data variables
+uint8_t globalWaveform[4096];   // Adjust size as needed
+uint8_t globalSpectrum[2048];   // Adjust size as needed
+size_t globalWaveformLength = 0;
+size_t globalSpectrumLength = 0;
+
+static pthread_mutex_t audioDataMutex = PTHREAD_MUTEX_INITIALIZER;
+
 // FPS counting
 double lastTime = 0;
 int frameCounter = 0;
@@ -148,6 +156,21 @@ OSStatus AudioDeviceIOProcCallback(
     return noErr;
 }
 
+
+// Update audio data
+void updateAudioData(const uint8_t *waveform, const uint8_t *spectrum, size_t waveformLength, size_t spectrumLength) {
+    pthread_mutex_lock(&audioDataMutex);
+    
+    // Ensure we don't overflow the global buffers
+    globalWaveformLength = (waveformLength <= sizeof(globalWaveform)) ? waveformLength : sizeof(globalWaveform);
+    globalSpectrumLength = (spectrumLength <= sizeof(globalSpectrum)) ? spectrumLength : sizeof(globalSpectrum);
+    
+    // Copy data into the global buffers
+    memcpy(globalWaveform, waveform, globalWaveformLength);
+    memcpy(globalSpectrum, spectrum, globalSpectrumLength);
+    
+    pthread_mutex_unlock(&audioDataMutex);
+}
 
 void StartAudioCapture(AudioObjectID aggregatedDeviceId, AudioDeviceIOProcID *deviceProcID) {
     OSStatus status;

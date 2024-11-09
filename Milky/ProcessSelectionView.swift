@@ -4,10 +4,10 @@ import SwiftUI
 struct ProcessSelectionView: View {
     @State private var processController = AudioProcessController()
     @State private var tap: ProcessTap?
-    @State private var recorder: ProcessTapRecorder?
     @State private var selectedProcess: AudioProcess?
 
     var body: some View {
+        
         Section {
             Picker("App", selection: $selectedProcess) {
                 Text("Select…")
@@ -22,18 +22,16 @@ struct ProcessSelectionView: View {
 
                         Text(process.name)
                     }
-                        .tag(Optional<AudioProcess>.some(process))
+                    .tag(Optional<AudioProcess>.some(process))
                 }
             }
-            .disabled(recorder?.isRecording == true)
+            .disabled(tap != nil)
             .task { processController.activate() }
             .onChange(of: selectedProcess) { oldValue, newValue in
                 guard newValue != oldValue else { return }
 
                 if let newValue {
-                    setupRecording(for: newValue)
-                } else if oldValue == tap?.process {
-                    teardownTap()
+                    setupVisualization(for: newValue)
                 }
             }
         } header: {
@@ -41,61 +39,14 @@ struct ProcessSelectionView: View {
                 .font(.headline)
         }
 
-        if let tap {
-            if let errorMessage = tap.errorMessage {
-                Text(errorMessage)
-                    .font(.headline)
-                    .foregroundStyle(.red)
-            } else if let recorder {
-                RecordingView(recorder: recorder)
-                    .onChange(of: recorder.isRecording) { wasRecording, isRecording in
-                        /// Each recorder instance can only record a single file, so we create a new file/recorder when recording stops.
-                        if wasRecording, !isRecording {
-                            createRecorder()
-                        }
-                    }
-            }
+        if tap != nil {
+            ConfigView( appIcon: selectedProcess!.icon, isRecording: tap != nil)
         }
     }
 
-    private func setupRecording(for process: AudioProcess) {
+    private func setupVisualization(for process: AudioProcess) {
         let newTap = ProcessTap(process: process)
         self.tap = newTap
         newTap.activate()
-        
-        //startAudioLoop(process.objectID, process.id)
-        createRecorder()
-    }
-
-    private func createRecorder() {
-        guard let tap else { return }
-
-        let filename = "\(tap.process.name)-\(Int(Date.now.timeIntervalSinceReferenceDate))"
-        let audioFileURL = URL.applicationSupport.appendingPathComponent(filename, conformingTo: .wav)
-
-        let newRecorder = ProcessTapRecorder(fileURL: audioFileURL, tap: tap)
-        self.recorder = newRecorder
-    }
-
-    private func teardownTap() {
-        tap = nil
     }
 }
-
-extension URL {
-    static var applicationSupport: URL {
-        do {
-            let appSupport = try FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: false)
-            let subdir = appSupport.appending(path: "AudioCap", directoryHint: .isDirectory)
-            if !FileManager.default.fileExists(atPath: subdir.path) {
-                try FileManager.default.createDirectory(at: subdir, withIntermediateDirectories: true)
-            }
-            return subdir
-        } catch {
-            assertionFailure("Failed to get application support directory: \(error)")
-
-            return FileManager.default.temporaryDirectory
-        }
-    }
-}
-

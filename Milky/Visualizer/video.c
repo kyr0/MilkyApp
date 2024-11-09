@@ -58,7 +58,7 @@ void updateAudioData(const uint8_t *waveform, const uint8_t *spectrum, size_t wa
 }
 
 void *renderLoop(void *arg) {
-    RenderLoopArgs *args = (RenderLoopArgs *)arg;
+    MilkyRenderLoopArgs *args = (MilkyRenderLoopArgs *)arg;
     
     while (renderLoopRunning) {
         size_t currentTime = getCurrentTimeMillis();
@@ -102,7 +102,7 @@ void startContinuousRender(uint8_t *frameBufferA, uint8_t *frameBufferB, size_t 
     bufferB = frameBufferB;
 
     // Allocate memory for the arguments struct
-    RenderLoopArgs *args = malloc(sizeof(RenderLoopArgs));
+    MilkyRenderLoopArgs *args = malloc(sizeof(MilkyRenderLoopArgs));
     if (args == NULL) {
         fprintf(stderr, "Failed to allocate memory for render loop arguments\n");
         return;

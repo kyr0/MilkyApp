@@ -17,7 +17,7 @@ typedef struct {
     size_t canvasHeightPx;
     uint8_t bitDepth;
     size_t sampleRate;
-} RenderLoopArgs;
+} MilkyRenderLoopArgs;
 
 #ifdef __cplusplus
 extern "C" {
