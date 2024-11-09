@@ -9,6 +9,10 @@
 
 #include "../video/draw.h"
 
+#ifdef __ARM_NEON__
+#include <arm_neon.h>
+#endif
+
 // Global variable to store the average offset introduced by smoothing
 extern float milky_soundAverageOffset;
 
@@ -36,8 +40,7 @@ void renderWaveformSimple(
     const float *emphasizedWaveform,
     size_t waveformLength,
     float globalAlphaFactor,
-    int32_t yOffset,
-    int32_t lineThickness
+    int32_t yOffset
 );
 
 #endif // SOUND_H

@@ -5,7 +5,7 @@ static FFTManager *fftManager = NULL;
 const int fftSizes[NUM_FFT_SIZES] = {128, 256, 512, 1024, 2048};
 
 // Global audio data variables
-uint8_t globalWaveform[4096];   // Adjust size as needed
+uint8_t globalWaveform[MAX_WAVEFORM_SAMPLES];   // Adjust size as needed
 uint8_t globalSpectrum[2048];   // Adjust size as needed
 size_t globalWaveformLength = 0;
 size_t globalSpectrumLength = 0;
@@ -15,6 +15,14 @@ static pthread_mutex_t audioDataMutex = PTHREAD_MUTEX_INITIALIZER;
 // FPS counting
 double lastTime = 0;
 int frameCounter = 0;
+
+static double lastFpsLogTime = 0;
+static int audioFrameCounter = 0;
+static double lastAudioUpdateTime = 0;
+static double lastFFTUpdateTime = 0;
+const double audioUpdateInterval = 1.0 / 60.0; // 30 updates per second
+const double fftUpdateInterval = 1.0 / 15.0;   // 15 updates per second
+const double fpsLogInterval = 1.0;             // Log FPS every second
 
 // Initialize an FFT processor for a specific size
 FFTProcessor *initializeFFTProcessor(int fftSize) {
@@ -114,45 +122,57 @@ OSStatus AudioDeviceIOProcCallback(
     const AudioTimeStamp *inOutputTime,
     void *inClientData
 ) {
-    // Get the current time in seconds
     double currentTime = getCurrentTimeInSeconds();
-    double deltaTime = currentTime - lastTime;
     
-    // Calculate FPS every second
-    if (deltaTime >= 1.0) {
-        double fps = frameCounter / deltaTime;
-        printf("Audio FPS: %.2f\n", fps);
-        
-        // Reset counters
-        lastTime = currentTime;
-        frameCounter = 0;
-    }
-    
-    // Process audio data if available
-    if (inInputData && inInputData->mNumberBuffers > 0) {
-        // Access the audio data buffer
-        float *inputBuffer = (float *)inInputData->mBuffers[0].mData;
-        UInt32 sampleCount = inInputData->mBuffers[0].mDataByteSize / sizeof(float);
-        
-        // Temporary arrays to hold the waveform and frequency bins
-        uint8_t waveform[sampleCount];
-        unsigned char frequencyBins[sampleCount / 2];
-        
-        // Convert `inputBuffer` to `waveform` (scaling as needed)
-        for (UInt32 i = 0; i < sampleCount; i++) {
-            waveform[i] = (uint8_t)((inputBuffer[i] + 1.0f) * 127.5f);  // Scale to 0–255
+    float *inputBuffer = (float *)inInputData->mBuffers[0].mData;
+    UInt32 sampleCount = inInputData->mBuffers[0].mDataByteSize / sizeof(float);
+
+    // Process audio data at 30 Hz
+    if (currentTime - lastAudioUpdateTime >= audioUpdateInterval) {
+        lastAudioUpdateTime = currentTime;
+
+        if (inInputData && inInputData->mNumberBuffers > 0) {
+
+            // Convert inputBuffer to waveform
+            uint8_t waveform[MAX_WAVEFORM_SAMPLES];
+            for (UInt32 i = 0; i < MAX_WAVEFORM_SAMPLES && i < sampleCount; i++) {
+                waveform[i] = (uint8_t)((inputBuffer[i] + 1.0f) * 127.5f);
+            }
+            
+            // Update global waveform data
+            pthread_mutex_lock(&audioDataMutex);
+            memcpy(globalWaveform, waveform, MAX_WAVEFORM_SAMPLES);
+            globalWaveformLength = MAX_WAVEFORM_SAMPLES;
+            pthread_mutex_unlock(&audioDataMutex);
         }
+        audioFrameCounter++;
+    }
 
-        // Perform FFT and fill `frequencyBins`
-        performFFT(inputBuffer, sampleCount, frequencyBins);
-        
-        // Update the global audio data (copy data into global buffers)
-        updateAudioData(waveform, frequencyBins, sampleCount, sampleCount / 2);
+    // Perform FFT at 15 Hz
+    if (currentTime - lastFFTUpdateTime >= fftUpdateInterval) {
+        lastFFTUpdateTime = currentTime;
+
+        if (inInputData && inInputData->mNumberBuffers > 0) {
+
+            // Perform FFT
+            uint8_t spectrum[2048];
+            performFFT(inputBuffer, sampleCount, spectrum);
+
+            // Update global spectrum data
+            pthread_mutex_lock(&audioDataMutex);
+            memcpy(globalSpectrum, spectrum, 2048);
+            globalSpectrumLength = 2048;
+            pthread_mutex_unlock(&audioDataMutex);
+        }
     }
     
-    // Increment the frame counter
-    frameCounter++;
-
+    // Log audio FPS every second
+    if (currentTime - lastFpsLogTime >= fpsLogInterval) {
+        double fps = audioFrameCounter / (currentTime - lastFpsLogTime);
+        printf("Audio FPS: %.2f\n", fps);
+        lastFpsLogTime = currentTime;
+        audioFrameCounter = 0;
+    }
     return noErr;
 }
 

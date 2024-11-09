@@ -236,8 +236,8 @@
             filePath = "Milky/ProcessTap/ProcessTap.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "172"
-            endingLineNumber = "172"
+            startingLineNumber = "171"
+            endingLineNumber = "171"
             landmarkName = "run(on:ioBlock:invalidationHandler:)"
             landmarkType = "7">
          </BreakpointContent>
@@ -252,8 +252,8 @@
             filePath = "Milky/DSP/audio.cpp"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "175"
-            endingLineNumber = "175"
+            startingLineNumber = "195"
+            endingLineNumber = "195"
             landmarkName = "StartAudioCapture(aggregatedDeviceId, deviceProcID)"
             landmarkType = "9">
          </BreakpointContent>
@@ -268,8 +268,8 @@
             filePath = "Milky/DSP/audio.cpp"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "176"
-            endingLineNumber = "176"
+            startingLineNumber = "196"
+            endingLineNumber = "196"
             landmarkName = "StartAudioCapture(aggregatedDeviceId, deviceProcID)"
             landmarkType = "9">
          </BreakpointContent>
@@ -284,8 +284,8 @@
             filePath = "Milky/DSP/audio.cpp"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "61"
-            endingLineNumber = "61"
+            startingLineNumber = "69"
+            endingLineNumber = "69"
             landmarkName = "performFFT(samples, sampleCount, frequencyBins)"
             landmarkType = "9">
          </BreakpointContent>
@@ -300,8 +300,8 @@
             filePath = "Milky/DSP/audio.cpp"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "78"
-            endingLineNumber = "78"
+            startingLineNumber = "86"
+            endingLineNumber = "86"
             landmarkName = "performFFT(samples, sampleCount, frequencyBins)"
             landmarkType = "9">
          </BreakpointContent>
@@ -309,16 +309,64 @@
       <BreakpointProxy
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
-            uuid = "617ECC33-D396-402B-B5C5-2B50BD94C750"
+            uuid = "C14FE602-4042-4CB6-A04B-5481546BCEAC"
             shouldBeEnabled = "No"
             ignoreCount = "0"
             continueAfterRunningActions = "No"
-            filePath = "Milky/DSP/audio.cpp"
+            filePath = "Milky/DetachedViewController.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "122"
-            endingLineNumber = "122"
-            landmarkName = "AudioDeviceIOProcCallback(inDevice, inNow, inInputData, inInputTime, outOutputData, inOutputTime, inClientData)"
+            startingLineNumber = "80"
+            endingLineNumber = "80"
+            landmarkName = "setVisualizationConfig(config:)"
+            landmarkType = "7">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "11A3677D-5C0E-4C5C-8897-513B7C5AB885"
+            shouldBeEnabled = "No"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "Milky/DSP/video.cpp"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "59"
+            endingLineNumber = "59"
+            landmarkName = "renderLoop(arg)"
+            landmarkType = "9">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "BBC56541-A3BF-4E85-A472-E3775F8F28AF"
+            shouldBeEnabled = "No"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "Milky/DSP/video.cpp"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "93"
+            endingLineNumber = "93"
+            landmarkName = "renderLoop(arg)"
+            landmarkType = "9">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "B878CA9F-84ED-45DD-8344-6EA846D1C4DE"
+            shouldBeEnabled = "No"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "Milky/DSP/video.cpp"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "107"
+            endingLineNumber = "107"
+            landmarkName = "renderLoop(arg)"
             landmarkType = "9">
          </BreakpointContent>
       </BreakpointProxy>

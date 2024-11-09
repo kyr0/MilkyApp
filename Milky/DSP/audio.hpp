@@ -12,10 +12,11 @@
 #include <memory>
 
 #define NUM_FFT_SIZES 5
+#define MAX_WAVEFORM_SAMPLES 1024
 extern const int fftSizes[NUM_FFT_SIZES]; // Declare fftSizes as extern
 
 // Declare the variables as extern for global access
-extern uint8_t globalWaveform[4096];
+extern uint8_t globalWaveform[MAX_WAVEFORM_SAMPLES];
 extern uint8_t globalSpectrum[2048];
 extern size_t globalWaveformLength;
 extern size_t globalSpectrumLength;

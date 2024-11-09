@@ -62,46 +62,46 @@ void setPixel(uint8_t *frame, size_t width, size_t height, size_t x, size_t y, u
  @param y1     The y-coordinate of the ending point of the line.
 */
 void drawLine(uint8_t *screen, size_t width, size_t height, int x0, int y0, int x1, int y1, uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
-    int dx = abs(x1 - x0); // Calculate the absolute difference in x
-    int dy = -abs(y1 - y0); // Calculate the negative absolute difference in y
+    // Precompute pitch and initial position
+    size_t pitch = width * 4; // assuming 4 bytes per pixel (RGBA)
 
-    int sx = x0 < x1 ? 1 : -1; // Determine the step direction for x
-    int sy = y0 < y1 ? 1 : -1; // Determine the step direction for y
+    // Precompute RGBA pixel value in a buffer
+    uint32_t pixel = (a << 24) | (b << 16) | (g << 8) | r;
 
-    int err = dx + dy; // Initialize the error term
+    // Calculate deltas and step directions
+    int dx = abs(x1 - x0);
+    int dy = -abs(y1 - y0);
+    int sx = x0 < x1 ? 1 : -1;
+    int sy = y0 < y1 ? 1 : -1;
+    int err = dx + dy;
 
-    size_t pitch = width * 4; // Calculate the pitch assuming 4 bytes per pixel (RGBA)
+    int x = x0;
+    int y = y0;
 
-    int x = x0; // Start x position
-    int y = y0; // Start y position
+    // Pre-check bounds to avoid repeatedly checking inside the loop
+    if (x < 0 || x >= (int)width || y < 0 || y >= (int)height) return;
 
     while (1) {
-        // Calculate the index in the screen buffer and set the pixel color
+        // Directly write the precomputed RGBA value to the screen buffer
         size_t index = (size_t)y * pitch + (size_t)x * 4;
-        screen[index]     = r; // Set Red channel
-        screen[index + 1] = g; // Set Green channel
-        screen[index + 2] = b; // Set Blue channel
-        screen[index + 3] = a; // Set Alpha channel using the provided parameter
+        *((uint32_t*)&screen[index]) = pixel;
 
-        if (x == x1 && y == y1) break; // Break if the end point is reached
+        // Break if end point is reached
+        if (x == x1 && y == y1) break;
 
-        int e2 = err << 1; // Double the error term
-
-        if (e2 >= dy) { // Adjust error and x position if necessary
+        // Adjust error and x/y positions based on Bresenham's algorithm
+        int e2 = err << 1;
+        if (e2 >= dy) {
             err += dy;
             x += sx;
-
-            // Clamp x within bounds (0 to width-1; prevent rendering out of canvas; this makes the chaser move along corners)
-            if (x < 0) x = 0;
-            if (x >= (int)width) x = (int)width - 1;
         }
-        if (e2 <= dx) { // Adjust error and y position if necessary
+        if (e2 <= dx) {
             err += dx;
             y += sy;
-
-            // Clamp y within bounds (0 to height-1; prevent rendering out of canvas; this makes the chaser move along corners)
-            if (y < 0) y = 0;
-            if (y >= (int)height) y = (int)height - 1;
         }
+
+        // If the line moves out of bounds, break out
+        if (x < 0 || x >= (int)width || y < 0 || y >= (int)height) break;
     }
 }
+

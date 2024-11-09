@@ -131,26 +131,21 @@ void boxBlurAndPerspective2(
  * @param frameSize The total size of the frame buffer in bytes.
  */
 void blurFrame(uint8_t *prevFrame, size_t frameSize) {
-   for (size_t i = 0; i < frameSize; i += 4) {
-      uint8_t *pixel = &prevFrame[i];
-      // apply a more subtle fade for a smoother transition
-      for (int channel = 0; channel < 3; channel++) { // R, G, B channels
-          pixel[channel] = (uint8_t)(pixel[channel] * 0.90);
-      }
-  }
+    for (size_t i = 0; i < frameSize; i += 4) {
+        uint8_t *pixel = &prevFrame[i];
+        for (int channel = 0; channel < 3; channel++) {
+            pixel[channel] = (uint8_t)(pixel[channel] * 0.90);
+        }
+    }
 }
 
+
 void preserveMassFade(uint8_t *prevFrame, uint8_t *frame, size_t frameSize) {
-  // mass preservation with a more efficient fade
-  for (size_t i = 0; i < frameSize; i += 4) {
-    for (int channel = 0; channel < 3; channel++) { // Only apply to R, G, B channels
-      uint8_t prevValue = prevFrame[i + channel];
-
-      // apply a fade by multiplying by 0.90 for a more consistent look
-      uint8_t fadedValue = (uint8_t)(prevValue * 0.90);
-
-      // preserve more of the original value by averaging with the faded value
-      frame[i + channel] = (prevValue + fadedValue) >> 1; // use bit shift for faster division
+    // Fallback for non-NEON devices
+    for (size_t i = 0; i < frameSize; i += 4) {
+        for (int channel = 0; channel < 3; channel++) {  // Only apply to RGB channels
+            uint8_t prevValue = prevFrame[i + channel];
+            frame[i + channel] = (prevValue + (uint8_t)(prevValue * 0.90)) >> 1;
+        }
     }
-  }
 }

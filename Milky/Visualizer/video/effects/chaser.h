@@ -6,6 +6,10 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#ifdef __ARM_NEON__
+#include <arm_neon.h>
+#endif
+
 #include "../draw.h"
 
 // maximum number of chasers that can be rendered simultaneously

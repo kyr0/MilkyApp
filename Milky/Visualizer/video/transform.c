@@ -56,24 +56,60 @@ void rotate(float timeFrame, uint8_t *tempBuffer, uint8_t *frame, float speed, f
                 // calculate source and destination indices in the buffer
                 size_t src_index = (src_yi * width + src_xi) * 4;
                 size_t dst_index = (y * width + x) * 4;
+                
                 // copy the pixel from the source to the destination in the temp buffer
+#ifdef __ARM_NEON__
+                // Optimized 4-byte pixel copy using NEON intrinsics
+                uint32x2_t pixel = vld1_dup_u32((uint32_t *)&frame[src_index]);
+                vst1_lane_u32((uint32_t *)&tempBuffer[dst_index], pixel, 0);
+#else
+                // Fallback for non-NEON platforms
                 memcpy(&tempBuffer[dst_index], &frame[src_index], 4);
+#endif
             }
         }
     }
 
     // blend the rotated image back into the frame with a specified alpha
+#ifdef __ARM_NEON__
+    // NEON-optimized blending
+    float alpha = 0.7f;
+    uint8x16_t alpha_vec = vdupq_n_u8((uint8_t)(alpha * 255));
+    uint8x16_t inv_alpha_vec = vdupq_n_u8((uint8_t)((1 - alpha) * 255));
+
+    for (size_t i = 0; i < width * height * 4; i += 16) {
+        // Load original and temp pixels
+        uint8x16_t orig_pixels = vld1q_u8(&frame[i]);
+        uint8x16_t temp_pixels = vld1q_u8(&tempBuffer[i]);
+
+        // Convert to uint16 for precision
+        uint16x8_t orig_low = vmovl_u8(vget_low_u8(orig_pixels));
+        uint16x8_t orig_high = vmovl_u8(vget_high_u8(orig_pixels));
+        uint16x8_t temp_low = vmovl_u8(vget_low_u8(temp_pixels));
+        uint16x8_t temp_high = vmovl_u8(vget_high_u8(temp_pixels));
+
+        // Multiply by alpha and (1 - alpha) (scaled as integer factors)
+        orig_low = vmlaq_u16(vmulq_u16(orig_low, vdupq_n_u16(255 - (uint8_t)(alpha * 255))), temp_low, vdupq_n_u16((uint8_t)(alpha * 255)));
+        orig_high = vmlaq_u16(vmulq_u16(orig_high, vdupq_n_u16(255 - (uint8_t)(alpha * 255))), temp_high, vdupq_n_u16((uint8_t)(alpha * 255)));
+
+        // Scale down by 255 to get final blended result
+        uint8x16_t blended_pixels = vcombine_u8(vqshrn_n_u16(orig_low, 8), vqshrn_n_u16(orig_high, 8));
+
+        // Store the blended result
+        vst1q_u8(&frame[i], blended_pixels);
+    }
+#else
+    // Fallback for non-NEON platforms
     float alpha = 0.7f;
     for (size_t i = 0; i < width * height * 4; i++) {
-        // apply alpha blending to combine the original and rotated images
         frame[i] = (uint8_t)(frame[i] * (1 - alpha) + tempBuffer[i] * alpha);
     }
+#endif
 }
 
 /**
  * Scales the image in the frame buffer by the specified `scale` factor,
- * using the `tempBuffer` as a temporary storage for the scaled image. The scaling is
- * performed around the center of the image, and the result is copied back to the `frame`.
+ * using the `tempBuffer` as a temporary storage for the scaled image.
  *
  * @param frame      The frame buffer containing the image to be scaled (RGBA format).
  * @param tempBuffer A temporary buffer used to store the scaled image.
@@ -88,43 +124,53 @@ void scale(
     size_t width,              // Frame width
     size_t height              // Frame height
 ) {
-    // initialize the temporary buffer to transparent black
     size_t frameSize = width * height * 4;
     memset(tempBuffer, 0, frameSize);
 
-    // calculate the center of the frame to use as a pivot for scaling
-    float centerX = width / 2.0f;
-    float centerY = height / 2.0f;
+    // Calculate center and inverse scale for optimization
+    float centerX = width * 0.5f;
+    float centerY = height * 0.5f;
+    float inv_scale = 1.0f / scale;
 
-    // loop through each pixel in the target buffer to apply scaling
+    // Loop through each pixel in the target buffer
     for (size_t y = 0; y < height; y++) {
         for (size_t x = 0; x < width; x++) {
-            // calculate the original position in the unscaled image
-            // this is done by reversing the scaling transformation
-            float originalX = (x - centerX) / scale + centerX;
-            float originalY = (y - centerY) / scale + centerY;
+            // Apply inverse scaling to find original positions
+            float originalX = (x - centerX) * inv_scale + centerX;
+            float originalY = (y - centerY) * inv_scale + centerY;
 
-            // round to the nearest neighbor in the source buffer
-            // this helps in determining the pixel to copy from the original image
+            // Round to nearest pixel in the source image
             int srcX = (int)roundf(originalX);
             int srcY = (int)roundf(originalY);
 
-            // copy pixel color from source if within bounds
-            // ensure that the calculated source position is valid
+            // Only copy if source coordinates are within bounds
             if (srcX >= 0 && srcX < (int)width && srcY >= 0 && srcY < (int)height) {
                 size_t srcIndex = (srcY * width + srcX) * 4;
                 size_t dstIndex = (y * width + x) * 4;
-                
-                // copy the RGBA values from the source to the destination
+
+                // Copy the RGBA values from the source to the destination
+#ifdef __ARM_NEON__
+                // Copy 4 bytes (RGBA) at a time using NEON
+                vst1q_u8(&tempBuffer[dstIndex], vld1q_u8(&frame[srcIndex]));
+#else
+                // Non-NEON fallback
                 tempBuffer[dstIndex + 0] = frame[srcIndex + 0]; // Red
                 tempBuffer[dstIndex + 1] = frame[srcIndex + 1]; // Green
                 tempBuffer[dstIndex + 2] = frame[srcIndex + 2]; // Blue
                 tempBuffer[dstIndex + 3] = frame[srcIndex + 3]; // Alpha
+#endif
             }
         }
     }
 
-    // copy the scaled image back to the original frame buffer
-    // this final step updates the frame with the newly scaled image
+    // Copy the scaled image back to the original frame buffer
+#ifdef __ARM_NEON__
+    // NEON-optimized memcpy for the entire buffer
+    for (size_t i = 0; i < frameSize; i += 16) {
+        vst1q_u8(&frame[i], vld1q_u8(&tempBuffer[i]));
+    }
+#else
+    // Fallback memcpy for non-NEON platforms
     memcpy(frame, tempBuffer, frameSize);
+#endif
 }

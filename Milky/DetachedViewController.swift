@@ -42,7 +42,7 @@ class DetachedViewController: NSViewController, NSWindowDelegate {
         
         // Set up NSImageView to display the image
         imageView = NSImageView(frame: view.bounds)
-        imageView.imageScaling = .scaleAxesIndependently
+        imageView.imageScaling = .scaleProportionallyUpOrDown
         imageView.autoresizingMask = [.width, .height]
         view.addSubview(imageView)
 
@@ -73,6 +73,8 @@ class DetachedViewController: NSViewController, NSWindowDelegate {
         determineRenderSize()
         
         let bufferSize = renderSize.width * renderSize.height * 4
+        let sleepTime =  Int(1.0 / Double(config.targetFPS) * 1000 * 1000)
+        let desiredFPS = Int(config.targetFPS)
         
         // Initialize pixel buffers
         pixelBufferA = Array(repeating: 0, count: bufferSize)
@@ -89,7 +91,9 @@ class DetachedViewController: NSViewController, NSWindowDelegate {
                     renderSize.width,
                     renderSize.height,
                     UInt8(config.bitDepth),
-                    44100
+                    44100,
+                    sleepTime,
+                    desiredFPS
                 )
             }
         }
@@ -164,6 +168,8 @@ class DetachedViewController: NSViewController, NSWindowDelegate {
             print("Failed to create CGContext")
             return nil
         }
+        
+        context.interpolationQuality = .none
 
         guard let cgImage = context.makeImage() else {
             print("Failed to create CGImage from context")

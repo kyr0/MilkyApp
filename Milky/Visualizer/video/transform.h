@@ -8,6 +8,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef __ARM_NEON__
+#include <arm_neon.h>
+#endif
+
 void rotate(float timeFrame, uint8_t *tempBuffer, uint8_t *screen, float speed, float angle, size_t width, size_t height);
 
 void scale(
