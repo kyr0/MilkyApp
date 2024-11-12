@@ -14,10 +14,6 @@
 
   </font>
 
-
-  [![](https://img.shields.io/badge/features-navy?style=for-the-badge&logo=rocket)](#-features)  [![](https://img.shields.io/badge/usage-magenta?style=for-the-badge&logo=readdotcv)](#-usage)   [![](https://img.shields.io/badge/docs-darkmagenta?style=for-the-badge&logo=readme)](https://github.com/kyr0/redaktool/wiki) [![](https://img.shields.io/badge/contributing-darkslategray?style=for-the-badge&logo=react)](#%EF%B8%8F-contibuting) ![BSD-3 Clause License](https://img.shields.io/github/license/kyr0/ftr-ki-tools?style=for-the-badge) 
-  [![](https://dcbadge.vercel.app/api/server/4wR9t7cdWc)](https://discord.gg/4wR9t7cdWc) [![](https://img.shields.io/badge/email-aron-cc0000?style=for-the-badge&logo=maildotru)](mailto:info@aron-homberg.de) [![](https://img.shields.io/badge/acknowledgements-cc0000?style=for-the-badge&logo=undertale)](#%EF%B8%8F-acknowledgements)
-
 </span>
 
 > 🛠️ MilkyApp makes use of the macOS 14.2+ "Audio Tap" feature to tap into App audio output streams. As a user, you can select any app (e.g.   Spotify), and MilkyApp will render the waveform artistically and anachronistically - inspired by the wonderful work of <a href="https://www.geisswerks.com/geiss/" target="_blank">Ryan Geiss' screensaver/Winamp plugin "Geiss"</a>.
