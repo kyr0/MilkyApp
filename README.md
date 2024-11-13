@@ -30,13 +30,13 @@
 
 ### 🔬 How does MilkyApp work?
 
-- ✅ **MilkyApp runs on the CPU**: You'll find that the rendering code is written in C (standard C99), uses no graphics libraries whatsover and simply calculates each pixel value of a framebuffer on it's on.
--  ✅ **Waveform rendering**: First a waveform is rendered, that uses the captures the audio stream as a seed for the curve.
--  ✅ **Blending, Rotation, Transformation**: For every next frame, the previous framebuffer is slightly rotated and transformed (zoomed in). Also, the color intensity is blended out by a factor. This makes "older" waveform renderings diminish over time and allows for smooths transitions between frames.
+- ✅ **MilkyApp runs on the CPU**: You'll find that the rendering code is written in C (standard C99), uses no graphics libraries whatsover and simply calculates each pixel value of a framebuffer on its own.
+-  ✅ **Waveform rendering**: First a waveform is rendered that uses the captured audio stream as a seed for the curve drawing. Each pixel is scaled and projected onto the canvas with the RGBA color values set to white, fully opaque (255, 255, 255, 255).
 -  ✅ **Colorization**: Pre-calculated (generated) color sets are used to colorize each frame.
 -  ✅ **FFT analysis and spectral flux detection**: For every frame, the waveform is transformed into a frequency/volume spectrogram (using a custom vFFT implementation). This allows the program to measure, how loud each frequency is playing at each time. To detect energy spikes in lows and highs, the spectrum is averaged and diffed over time, and a spectral flux is calculated. Whenever the energy drastically differs from previous frames, `SIG_ENERGY` is detected.
 - ✅ **Color and movement change automation**: Currently, all 30 secs, color changes may occur, when `SIG_ENEGRY` is detected. Also, rotation targets are randomly assigned so that the "flight" into the center of your monitor, feels artificially controlled.
 - ✅ **Effects**: Currently, two "chasers" are rendered with each frame. Their movement vectors are pre-calculated and because they move fast and frames diminish over time, they come with a comets' trail effect. Also, a compelx interplay of trigonometric functions make sure that the movement isn't predictable, which adds to a feeling of artificiality.
+-  ✅ **Blending, Rotation, Transformation**: For every next frame, the previous framebuffer is slightly rotated and transformed (zoomed in). Also, the color intensity is blended out by a factor. This makes "older" waveform renderings diminish over time and allows for smooths transitions between frames.
 - ✅ **Boring tech details, stunning for nerds**: In order to receive audio from the app and return the framebuffer in sync between Swift and C++, I use complex multi-thread synchronization and FFI with custom data type conversions. Audio and framebuffer data needs to be converted from Swift data types to C++ data types and vice-versa. This allows for zero-copy, lock-free realtime processing. The framebuffer is then handed into Metal shaders what would run several post-processings on each image, such as vignette, gamma and pixelated up/down-scaling.
 
 ## 📚 How to install and use it?
